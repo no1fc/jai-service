@@ -129,7 +129,7 @@ export default function ChatContainer() {
                         <div className="flex justify-start mt-2">
                             <button
                                 onClick={goBack}
-                                className="flex items-center gap-2 px-4 py-2 bg-bg-elevated border border-border rounded-[4px] text-sm font-medium text-text-secondary hover:text-text hover:bg-bg-elevated transition-all duration-300"
+                                className="flex items-center gap-2 px-4 py-2 bg-bg-elevated border border-border rounded-[var(--radius-default)] text-sm font-medium text-text-secondary hover:text-text hover:bg-bg-elevated transition-all duration-300"
                             >
                                 <ArrowLeft className="w-4 h-4" />
                                 이전 질문
@@ -215,7 +215,7 @@ export default function ChatContainer() {
                                 {/* 입력 컨트롤 영역: 중앙 질문 바로 아래에 배치 */}
                                 {showInput && (
                                     <div className="w-full max-w-3xl animate-fade-in" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
-                                        <div className="bg-bg-elevated border border-border rounded-[4px] p-4">
+                                        <div className="bg-bg-elevated border border-border rounded-[var(--radius-card)] p-4">
                                             <ChoiceChips
                                                 choices={currentChoices}
                                                 onSelect={sendChoice}

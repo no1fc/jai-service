@@ -23,7 +23,7 @@ export default function LoadingIndicator({ mode }: LoadingIndicatorProps) {
 
     return (
         <div
-            className="flex flex-col items-center justify-center gap-8 py-16 px-8 rounded-[4px] bg-bg-elevated border border-[var(--color-border)] mx-auto my-8 animate-reveal-up w-full max-w-lg"
+            className="flex flex-col items-center justify-center gap-8 py-16 px-8 rounded-[var(--radius-card)] bg-bg-elevated border border-[var(--color-border)] mx-auto my-8 animate-reveal-up w-full max-w-lg"
             aria-live="assertive"
             aria-busy="true"
         >
@@ -39,8 +39,8 @@ export default function LoadingIndicator({ mode }: LoadingIndicatorProps) {
                 <p className="text-text-secondary text-sm font-medium">실시간 자격 분석 중입니다...</p>
             </div>
 
-            <div className="w-full max-w-[240px] h-1 bg-bg rounded-[4px] overflow-hidden">
-                <div className="h-full bg-accent animate-flow-gradient w-1/2 rounded-[4px]" />
+            <div className="w-full max-w-[240px] h-1 bg-bg rounded-full overflow-hidden">
+                <div className="h-full bg-accent animate-flow-gradient w-1/2 rounded-full" />
             </div>
 
             <p className="text-text-muted text-[11px] text-center max-w-[240px] leading-relaxed font-sans">
