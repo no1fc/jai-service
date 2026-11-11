@@ -18,7 +18,7 @@ export default function TermsPage() {
                 <div className="space-y-12 text-text-secondary leading-relaxed font-medium">
                     <section>
                         <h2 className="text-2xl font-bold text-text mb-6">제1조 (목적)</h2>
-                        <p>본 약관은 NESS AI SYSTEM(이하 &quot;서비스 제공자&quot;)이 제공하는 국민취업지원제도 안내 챗봇 서비스(이하 &quot;서비스&quot;)의 이용과 관련하여 제공자와 이용자 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+                        <p>본 약관은 J.AI by 잡모아(이하 &quot;서비스 제공자&quot;)이 제공하는 국민취업지원제도 안내 챗봇 서비스(이하 &quot;서비스&quot;)의 이용과 관련하여 제공자와 이용자 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.</p>
                     </section>
 
                     <section>

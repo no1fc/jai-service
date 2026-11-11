@@ -111,8 +111,8 @@ export default function MapWidget({ branch }: MapWidgetProps) {
     if (!branch) {
         return (
             <div className="w-full h-full min-h-[300px] animate-reveal-up flex-1">
-                <div className="bg-bg-elevated rounded-[4px] p-8 border border-border relative overflow-hidden h-full flex flex-col items-center justify-center text-center group">
-                    <div className="w-16 h-16 rounded-[4px] bg-bg flex items-center justify-center mb-6 border border-border group-hover:bg-bg-elevated transition-colors">
+                <div className="bg-bg-elevated rounded-[var(--radius-card)] p-8 border border-border relative overflow-hidden h-full flex flex-col items-center justify-center text-center group">
+                    <div className="w-16 h-16 rounded-[var(--radius-card)] bg-bg flex items-center justify-center mb-6 border border-border group-hover:bg-bg-elevated transition-colors">
                         <MapIcon size={28} className="text-text-muted group-hover:text-accent transition-colors" />
                     </div>
                     <h3 className="text-text-secondary font-bold text-lg mb-2">지도가 표시될 공간입니다</h3>

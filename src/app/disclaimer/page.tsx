@@ -18,7 +18,7 @@ export default function DisclaimerPage() {
                 <div className="space-y-12 text-text-secondary leading-relaxed font-medium">
                     <section>
                         <h2 className="text-2xl font-bold text-text mb-6">정보 제공의 한계</h2>
-                        <p>1. NESS AI SYSTEM(이하 &quot;본 서비스&quot;)는 인공지능 언어모델을 기반으로 국민취업지원제도에 대한 정보를 안내하기 위한 데모 및 참고 목적으로 개발되었습니다.</p>
+                        <p>1. J.AI by 잡모아(이하 &quot;본 서비스&quot;)는 인공지능 언어모델을 기반으로 국민취업지원제도에 대한 정보를 안내하기 위한 데모 및 참고 목적으로 개발되었습니다.</p>
                         <p className="mt-4">2. 챗봇이 생성한 모든 답변, 수당 예상 수급액, 1/2유형 분류 예측, 추천 내용 등은 대한민국 고용노동부, 고용센터 및 관련 공식 정부 부처의 유권해석이나 법적 판단을 전혀 대변하지 않습니다.</p>
                     </section>
 

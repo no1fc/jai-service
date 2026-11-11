@@ -35,7 +35,7 @@ export default function LoadingIndicator({ mode }: LoadingIndicatorProps) {
             </div>
 
             <div className="text-center space-y-3">
-                <h3 className="text-text font-bold text-xl tracking-tight">AI NESS Mentor</h3>
+                <h3 className="text-text font-bold text-xl tracking-tight">J.AI</h3>
                 <p className="text-text-secondary text-sm font-medium">실시간 자격 분석 중입니다...</p>
             </div>
 

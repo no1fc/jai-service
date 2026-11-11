@@ -16,12 +16,12 @@ export default function ChatMessage({ message, isLatest }: ChatMessageProps) {
     return (
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto w-full">
             {/* 아이콘 상단 중앙 */}
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[4px] bg-bg-elevated flex items-center justify-center border border-border mb-6">
+            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[var(--radius-card)] bg-bg-elevated flex items-center justify-center border border-border mb-6">
                 <Sparkles size={24} className="text-accent" />
             </div>
 
             <div className="text-xs md:text-sm font-black tracking-[0.2em] uppercase mb-4 md:mb-6 text-accent">
-                Ness AI Mentor
+                J.AI 상담봇
             </div>
 
             <h2 className="text-xl md:text-2xl lg:text-2xl leading-[1.6] md:leading-[1.7] tracking-tight text-text font-semibold whitespace-pre-wrap break-keep">
