@@ -1,5 +1,5 @@
 -- NESS Chatbot MSSQL Schema
--- SQLite -> MSSQL 마이그레이션용 스키마 생성 스크립트
+-- MSSQL 스키마 생성 스크립트 (앱 initSchema와 동일 구조)
 
 -- 1. 지점 정보 테이블
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'branches')
