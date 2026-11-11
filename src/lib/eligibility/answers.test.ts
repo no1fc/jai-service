@@ -4,7 +4,7 @@ import { DIAGNOSIS_QUESTIONS, parseDiagnosisAnswers } from './answers';
 const raw = {
     age: '28', militaryMonths: '0', status: 'unemployed', excluded: 'none', specialGroup: 'no',
     familySize: '2', monthlyIncome: '250', property: 'under1', workDays: 'over100',
-    hasPreschoolChild: 'no', region: '서울특별시 강남구',
+    hasPreschoolChild: 'no', similarProgram: 'none', region: '서울특별시 강남구',
 };
 
 describe('parseDiagnosisAnswers', () => {
@@ -30,5 +30,9 @@ describe('parseDiagnosisAnswers', () => {
     it('질문 id는 DiagnosisAnswers 키와 일치하고 지역이 마지막이다', () => {
         expect(DIAGNOSIS_QUESTIONS.map(q => q.id).sort()).toEqual(Object.keys(raw).sort());
         expect(DIAGNOSIS_QUESTIONS.at(-1)?.type).toBe('region');
+    });
+
+    it('familySize 8 이상은 거부한다', () => {
+        expect(parseDiagnosisAnswers({ ...raw, familySize: '8' }).ok).toBe(false);
     });
 });

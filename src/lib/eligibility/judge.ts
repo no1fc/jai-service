@@ -4,7 +4,7 @@
  */
 import { CRITERIA_2026 } from './criteria-2026';
 import type {
-    DiagnosisAnswers, EligibilityCriteria, EligibilityResult, EligibilityType, PropertyBand,
+    DiagnosisAnswers, EligibilityCriteria, EligibilityResult, EligibilityType, PropertyBand, SimilarProgramBand,
 } from './types';
 
 const LABELS: Record<EligibilityType, string> = {
@@ -31,6 +31,12 @@ const PROPERTY_MAX_EOK: Record<PropertyBand, number> = {
 };
 
 const propertyWithin = (band: PropertyBand, limitEok: number) => PROPERTY_MAX_EOK[band] <= limitEok;
+
+const SIMILAR_PROGRAM_PENALTY: Record<SimilarProgramBand, number> = {
+    none: 0,
+    within1: 10,
+    within2: 5,
+};
 
 function result(
     type: EligibilityType, base: Pick<EligibilityResult, 'incomeRatio' | 'isYouth'>,
@@ -61,6 +67,15 @@ function selectionScore(a: DiagnosisAnswers, ratio: number, youth: boolean) {
     if (a.hasPreschoolChild) {
         score += 5;
         details.push('미취학 자녀 가점: 5점');
+    }
+    const similarProgramPenalty = SIMILAR_PROGRAM_PENALTY[a.similarProgram];
+    if (similarProgramPenalty > 0) {
+        score -= similarProgramPenalty;
+        if (a.similarProgram === 'within1') {
+            details.push('유사제도 수혜(1년 이내) 감점: -10점');
+        } else if (a.similarProgram === 'within2') {
+            details.push('유사제도 수혜(1~2년 이내) 감점: -5점');
+        }
     }
     return { score, details };
 }

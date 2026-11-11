@@ -13,6 +13,7 @@ const base: DiagnosisAnswers = {
     property: 'under1',
     workDays: 'over100',
     hasPreschoolChild: false,
+    similarProgram: 'none',
     region: '서울특별시 강남구',
 };
 const judge = (patch: Partial<DiagnosisAnswers>) => judgeEligibility({ ...base, ...patch });
@@ -98,5 +99,18 @@ describe('judgeEligibility', () => {
         const r = judge({ age: 45, workDays: 'under60', monthlyIncome: 1_400_000, property: 'under4' });
         expect(r.type).toBe('selection_inactive');
         expect(r.score).toBe(56);
+    });
+
+    it('유사제도 1년 이내 수혜는 선발형 점수 10점 감점', () => {
+        const r = judge({ workDays: 'none', monthlyIncome: 1_000_000, similarProgram: 'within1' });
+        expect(r.type).toBe('selection_youth');
+        expect(r.score).toBe(74);
+        expect(r.scoreDetails.some(d => d.includes('-10점'))).toBe(true);
+    });
+
+    it('유사제도 1~2년 이내 수혜는 5점 감점, 요건심사형 판정에는 영향 없음', () => {
+        const r = judge({ age: 45, workDays: 'under60', monthlyIncome: 1_400_000, property: 'under4', similarProgram: 'within2' });
+        expect(r.score).toBe(51);
+        expect(judge({ similarProgram: 'within1' }).type).toBe('requirement');
     });
 });

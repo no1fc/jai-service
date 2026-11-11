@@ -72,6 +72,13 @@ export const DIAGNOSIS_QUESTIONS: DiagnosisQuestion[] = [
       ] },
     { id: 'hasPreschoolChild', type: 'choice', choices: yesNo('child'),
       message: '함께 사는 미취학 자녀가 있나요?' },
+    { id: 'similarProgram', type: 'choice',
+      message: '최근 2년 안에 비슷한 정부 취업지원제도(취업성공패키지, 청년구직활동지원금 등)에서 지원금을 받은 적이 있나요?',
+      choices: [
+          { id: 'sp_none', label: '없음', value: 'none' },
+          { id: 'sp_1', label: '1년 이내에 받음', value: 'within1' },
+          { id: 'sp_2', label: '1년 초과 ~ 2년 이내에 받음', value: 'within2' },
+      ] },
     { id: 'region', type: 'region', choices: [],
       message: '거주 지역을 선택해 주세요.\n가까운 잡모아 지점을 안내해 드립니다.' },
 ];
@@ -86,11 +93,12 @@ const answersSchema = z.object({
     status: z.enum(['unemployed', 'graduating', 'student', 'employed15', 'employedPart']),
     excluded: z.enum(['none', 'livelihood', 'participating', 'military', 'prison']),
     specialGroup: yesNoBool,
-    familySize: intString(1, 20),
+    familySize: intString(1, 7),
     monthlyIncome: intString(0, 100000).transform(manwon => manwon * 10000),
     property: z.enum(['under1', 'under2_5', 'under4', 'under5', 'over5']),
     workDays: z.enum(['none', 'under30', 'under60', 'under100', 'over100']),
     hasPreschoolChild: yesNoBool,
+    similarProgram: z.enum(['none', 'within1', 'within2']),
     region: z.string().trim().min(2).max(50),
 });
 

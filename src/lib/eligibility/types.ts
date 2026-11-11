@@ -6,6 +6,7 @@ export type PropertyBand = 'under1' | 'under2_5' | 'under4' | 'under5' | 'over5'
 export type WorkDaysBand = 'none' | 'under30' | 'under60' | 'under100' | 'over100';
 export type WorkStatus = 'unemployed' | 'graduating' | 'student' | 'employed15' | 'employedPart';
 export type ExcludedReason = 'none' | 'livelihood' | 'participating' | 'military' | 'prison';
+export type SimilarProgramBand = 'none' | 'within1' | 'within2';
 
 /** 질문 응답을 정규화한 값 */
 export interface DiagnosisAnswers {
@@ -19,6 +20,7 @@ export interface DiagnosisAnswers {
     property: PropertyBand;
     workDays: WorkDaysBand;   // 최근 2년 내 취업 일수
     hasPreschoolChild: boolean;
+    similarProgram: SimilarProgramBand;  // 최근 유사 취업지원제도 수혜 시기
     region: string;           // "시도 시군구"
 }
 

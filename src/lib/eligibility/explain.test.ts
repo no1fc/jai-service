@@ -6,7 +6,7 @@ import type { DiagnosisAnswers } from './types';
 const answers: DiagnosisAnswers = {
     age: 28, militaryMonths: 0, status: 'unemployed', excluded: 'none', specialGroup: false,
     familySize: 1, monthlyIncome: 1_000_000, property: 'under1', workDays: 'none',
-    hasPreschoolChild: false, region: '서울특별시 강남구',
+    hasPreschoolChild: false, similarProgram: 'none', region: '서울특별시 강남구',
 };
 
 describe('explain', () => {
