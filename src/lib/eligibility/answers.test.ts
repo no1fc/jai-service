@@ -35,4 +35,12 @@ describe('parseDiagnosisAnswers', () => {
     it('familySize 8 이상은 거부한다', () => {
         expect(parseDiagnosisAnswers({ ...raw, familySize: '8' }).ok).toBe(false);
     });
+
+    it('age 121은 NUMBER_LIMITS 범위를 초과하여 거부한다', () => {
+        expect(parseDiagnosisAnswers({ ...raw, age: '121' }).ok).toBe(false);
+    });
+
+    it('monthlyIncome 100001은 NUMBER_LIMITS 범위를 초과하여 거부한다', () => {
+        expect(parseDiagnosisAnswers({ ...raw, monthlyIncome: '100001' }).ok).toBe(false);
+    });
 });

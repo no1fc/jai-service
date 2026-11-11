@@ -16,6 +16,12 @@ import { Branch } from '@/types/db';
 import { ArrowLeft } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { SIDO_LIST } from '@/lib/regions';
+import { NUMBER_LIMITS } from '@/lib/eligibility/answers';
+
+/** questionId가 숫자 범위 제한이 있는 질문인지 (age, monthlyIncome) */
+function isNumberLimitKey(id: string | null): id is keyof typeof NUMBER_LIMITS {
+    return id !== null && id in NUMBER_LIMITS;
+}
 
 export default function ChatContainer() {
     const {
@@ -26,6 +32,7 @@ export default function ChatContainer() {
         phase,
         result,
         isError,
+        questionId,
         questionType,
         canGoBack,
         sendChoice,
@@ -53,6 +60,11 @@ export default function ChatContainer() {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
     }, [messages, isLoading, branch, phase]);
+
+    useEffect(() => {
+        // 질문이 바뀌면(이전 질문으로 돌아간 경우 포함) 이전 단계의 숫자 입력 에러를 지운다.
+        setNumberError('');
+    }, [currentStep]);
 
     const handleRegionSelect = async (sido: string, sigungu: string) => {
         setBranch('loading');
@@ -176,6 +188,14 @@ export default function ChatContainer() {
                                                 if (!/^\d{1,6}$/.test(text)) {
                                                     setNumberError('숫자만 입력해 주세요.');
                                                     return;
+                                                }
+                                                if (isNumberLimitKey(questionId)) {
+                                                    const { min, max } = NUMBER_LIMITS[questionId];
+                                                    const value = Number(text);
+                                                    if (value < min || value > max) {
+                                                        setNumberError(`${min}~${max} 사이 숫자로 입력해 주세요.`);
+                                                        return;
+                                                    }
                                                 }
                                                 setNumberError('');
                                                 sendText(text);

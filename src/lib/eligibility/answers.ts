@@ -83,18 +83,24 @@ export const DIAGNOSIS_QUESTIONS: DiagnosisQuestion[] = [
       message: '거주 지역을 선택해 주세요.\n가까운 잡모아 지점을 안내해 드립니다.' },
 ];
 
+/** 숫자 입력 질문(나이·소득)의 허용 범위. 서버 zod 스키마와 클라이언트 입력 검증이 공유한다. */
+export const NUMBER_LIMITS = {
+    age: { min: 0, max: 120 },
+    monthlyIncome: { min: 0, max: 100000 },
+} as const;
+
 const intString = (min: number, max: number) =>
     z.string().trim().regex(/^\d+$/, '숫자만 입력해 주세요.').transform(Number).pipe(z.number().int().min(min).max(max));
 const yesNoBool = z.enum(['yes', 'no']).transform(v => v === 'yes');
 
 const answersSchema = z.object({
-    age: intString(0, 120),
+    age: intString(NUMBER_LIMITS.age.min, NUMBER_LIMITS.age.max),
     militaryMonths: intString(0, 120),
     status: z.enum(['unemployed', 'graduating', 'student', 'employed15', 'employedPart']),
     excluded: z.enum(['none', 'livelihood', 'participating', 'military', 'prison']),
     specialGroup: yesNoBool,
     familySize: intString(1, 7),
-    monthlyIncome: intString(0, 100000).transform(manwon => manwon * 10000),
+    monthlyIncome: intString(NUMBER_LIMITS.monthlyIncome.min, NUMBER_LIMITS.monthlyIncome.max).transform(manwon => manwon * 10000),
     property: z.enum(['under1', 'under2_5', 'under4', 'under5', 'over5']),
     workDays: z.enum(['none', 'under30', 'under60', 'under100', 'over100']),
     hasPreschoolChild: yesNoBool,

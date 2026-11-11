@@ -54,7 +54,7 @@ function createUserMessage(content: string): Message {
 }
 
 /** /api/chat 응답 → RECEIVE_RESPONSE payload */
-function toReceivePayload(data: {
+export function toReceivePayload(data: {
     message: string; choices?: Choice[]; phase?: ChatPhase; currentStep?: number; totalSteps?: number;
     questionId?: string; type?: QuestionType; result?: DiagnosisResult;
 }) {
@@ -71,7 +71,7 @@ function toReceivePayload(data: {
 }
 
 /** 마지막 질문까지 답했는지 */
-const isQuestionsDone = (data: { phase?: string; currentStep?: number; totalSteps?: number }) =>
+export const isQuestionsDone = (data: { phase?: string; currentStep?: number; totalSteps?: number }) =>
     data.phase === 'questioning' && data.currentStep !== undefined && data.totalSteps !== undefined
     && data.currentStep > data.totalSteps;
 
@@ -120,7 +120,7 @@ type ChatAction =
 // 초기 상태 & Reducer (훅 외부 — 호이스팅 안전)
 // ====================================
 
-const initialState: ChatState = {
+export const initialState: ChatState = {
     messages: [],
     isLoading: false,
     currentStep: 0,
@@ -136,7 +136,7 @@ const initialState: ChatState = {
     stateHistory: [],
 };
 
-function chatReducer(state: ChatState, action: ChatAction): ChatState {
+export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     switch (action.type) {
         case 'SAVE_SNAPSHOT':
             return {
@@ -520,6 +520,7 @@ export function useChat(): UseChatReturn {
         phase: state.phase,
         result: state.result,
         isError: state.isError,
+        questionId: state.questionId,
         questionType: state.questionType,
         canGoBack: state.stateHistory.length > 0,
         userAnswers: state.userAnswers,

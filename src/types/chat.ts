@@ -59,6 +59,7 @@ export interface UseChatReturn {
     phase: ChatPhase;
     result: DiagnosisResult | null;
     isError: boolean;
+    questionId: string | null;
     questionType: QuestionType | null;
     canGoBack: boolean;
     userAnswers: Record<string, string>;

@@ -56,6 +56,15 @@ export default function PromptsSettingsPage() {
             if (data.success && data.settings && data.promptCategories) {
                 setCategories(data.promptCategories);
 
+                // 현재 activeTab이 로드된 카테고리 목록에 없으면(예: 삭제된 'system_prompt')
+                // 첫 번째 카테고리로 이동한다. 그대로 두면 에디터 패널이 비어 보인다.
+                // (setState 콜백 형태로 최신 activeTab을 읽어 effect의 의존성 배열에 추가하지 않아도 된다.)
+                setActiveTab(current =>
+                    data.promptCategories.some((cat: PromptCategory) => cat.key === current)
+                        ? current
+                        : (data.promptCategories[0]?.key ?? '')
+                );
+
                 // 설정 데이터 매핑
                 const newSettings: Record<string, string> = {};
                 data.promptCategories.forEach((cat: PromptCategory) => {
@@ -162,15 +171,6 @@ export default function PromptsSettingsPage() {
         setSettingsData(prev => ({ ...prev, [activeTab]: val }));
     };
 
-    const injectVariable = (varName: string) => {
-        const text = settingsData['system_prompt'] || '';
-        // 커서 위치 파악은 복잡하므로 끝에 추가 (단순화)
-        setSettingsData(prev => ({
-            ...prev,
-            'system_prompt': text + (text.endsWith(' ') || text === '' ? '' : ' ') + `{{${varName}}}`
-        }));
-    };
-
     const currentTabInfo = categories.find(t => t.key === activeTab);
 
     return (
@@ -263,22 +263,6 @@ export default function PromptsSettingsPage() {
                                             <Loader2 className="animate-spin w-6 h-6 text-[var(--color-accent)]" />
                                             불러오는 중...
                                         </div>
-                                    </div>
-                                )}
-
-                                {/* 시스템 프롬프트 전용 가이드 툴바 */}
-                                {activeTab === 'system_prompt' && (
-                                    <div className="bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] p-3 px-6 flex flex-wrap gap-2 items-center">
-                                        <span className="text-xs text-[var(--color-text-muted)] font-medium whitespace-nowrap mr-2">동적 변수(템플릿) 삽입:</span>
-                                        {categories.filter(c => c.key !== 'system_prompt' && c.type !== 'json').map(cat => (
-                                            <button
-                                                key={cat.key}
-                                                onClick={() => injectVariable(cat.key)}
-                                                className="px-2.5 py-1 bg-[var(--color-bg)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] border border-[var(--color-border)] rounded-[4px] text-xs font-mono text-[var(--color-text-secondary)] transition-colors"
-                                            >
-                                                {"{{"}{cat.key}{"}}"}
-                                            </button>
-                                        ))}
                                     </div>
                                 )}
 
