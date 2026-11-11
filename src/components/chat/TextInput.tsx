@@ -8,9 +8,10 @@ interface TextInputProps {
     onCancel?: () => void;
     placeholder?: string;
     disabled?: boolean;
+    inputMode?: 'text' | 'numeric';
 }
 
-export default function TextInput({ onSubmit, onCancel, placeholder, disabled }: TextInputProps) {
+export default function TextInput({ onSubmit, onCancel, placeholder, disabled, inputMode }: TextInputProps) {
     const [text, setText] = useState('');
 
     const handleSubmit = () => {
@@ -41,6 +42,7 @@ export default function TextInput({ onSubmit, onCancel, placeholder, disabled }:
             <div className={`relative flex items-center transition-colors ${disabled ? 'opacity-50' : ''}`}>
                 <input
                     type="text"
+                    inputMode={inputMode}
                     value={text}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}

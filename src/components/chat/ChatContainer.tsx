@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@/hooks/useChat';
 import ChatMessage from './ChatMessage';
 import ChoiceChips from './ChoiceChips';
-import IncomeTable from './IncomeTable';
+import TextInput from './TextInput';
 import RetryButton from './RetryButton';
 import LoadingIndicator from './LoadingIndicator';
 import ProgressBar from './ProgressBar';
@@ -15,6 +15,7 @@ import RegionSelector from './RegionSelector';
 import { Branch } from '@/types/db';
 import { ArrowLeft } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { SIDO_LIST } from '@/lib/regions';
 
 export default function ChatContainer() {
     const {
@@ -25,7 +26,7 @@ export default function ChatContainer() {
         phase,
         result,
         isError,
-        showIncomeTable,
+        questionType,
         canGoBack,
         sendChoice,
         sendText,
@@ -37,6 +38,7 @@ export default function ChatContainer() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const resultRef = useRef<HTMLDivElement>(null);
     const [branch, setBranch] = useState<Branch | null | 'loading' | 'none'>('none');
+    const [numberError, setNumberError] = useState('');
 
     useEffect(() => {
         startChat();
@@ -74,11 +76,7 @@ export default function ChatContainer() {
 
     useEffect(() => {
         if (phase === 'result' && branch === 'none' && result && result.type !== '제한') {
-            const sidoList = [
-                '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
-                '경기도', '강원특별자치도', '충청북도', '충청남도', '전북특별자치도', '전라남도', '경상북도', '경상남도', '제주특별자치도'
-            ];
-            const regionMessage = messages.find((m) => m.role === 'user' && sidoList.some(sido => m.content.startsWith(sido)));
+            const regionMessage = messages.find((m) => m.role === 'user' && SIDO_LIST.some(sido => m.content.startsWith(sido)));
 
             if (regionMessage) {
                 const parts = regionMessage.content.split(' ');
@@ -92,8 +90,9 @@ export default function ChatContainer() {
     const lastAIMessage = [...messages].reverse().find((m) => m.role === 'ai');
     const currentChoices = lastAIMessage?.choices ?? [];
 
-    // 현재 질문이 지역 선택형인지 확인 (마지막 단계)
-    const isRegionStep = phase === 'questioning' && currentStep === totalSteps;
+    // 현재 질문이 지역 선택형인지 확인
+    const isRegionStep = phase === 'questioning' && questionType === 'region';
+    const isNumberStep = phase === 'questioning' && questionType === 'number' && !isLoading && !isError;
 
     const showInput =
         !isLoading &&
@@ -156,12 +155,6 @@ export default function ChatContainer() {
                                 </div>
 
                                 {/* 상황별 추가 UI 조건부 렌더링 */}
-                                {showIncomeTable && phase === 'questioning' && (
-                                    <div className="w-full max-w-3xl mb-12 animate-fade-in">
-                                        <IncomeTable />
-                                    </div>
-                                )}
-
                                 {isRegionStep && (
                                     <div className="w-full max-w-2xl mb-12 animate-fade-in">
                                         <RegionSelector
@@ -170,6 +163,25 @@ export default function ChatContainer() {
                                             }}
                                             disabled={isLoading}
                                         />
+                                    </div>
+                                )}
+
+                                {isNumberStep && (
+                                    <div className="w-full max-w-md mb-12 animate-fade-in">
+                                        <TextInput
+                                            inputMode="numeric"
+                                            placeholder={lastAIMessage.content.includes('만 원') ? '예: 250' : '예: 28'}
+                                            disabled={isLoading}
+                                            onSubmit={(text) => {
+                                                if (!/^\d{1,6}$/.test(text)) {
+                                                    setNumberError('숫자만 입력해 주세요.');
+                                                    return;
+                                                }
+                                                setNumberError('');
+                                                sendText(text);
+                                            }}
+                                        />
+                                        {numberError && <p role="alert" className="mt-2 text-sm text-danger">{numberError}</p>}
                                     </div>
                                 )}
 

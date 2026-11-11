@@ -80,7 +80,7 @@ export const chatRequestSchema = z.object({
         content: z.string(),
     })).optional().default([]),
     phase: z.enum(['intro', 'info', 'questioning', 'analyzing', 'location', 'result', 'ended']),
-    userAnswers: z.record(z.string(), z.string()).optional().default({}),
+    userAnswers: z.record(z.string().max(50), z.string().max(100)).optional().default({}),
     currentStep: z.number().int().min(0).optional().default(0),
 });
 

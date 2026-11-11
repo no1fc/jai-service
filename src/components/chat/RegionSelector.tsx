@@ -2,31 +2,12 @@
 
 import { useState } from 'react';
 import { Search, MapPin } from 'lucide-react';
+import { SIDO_LIST } from '@/lib/regions';
 
 interface RegionSelectorProps {
     onSelect: (sido: string, sigungu: string) => void;
     disabled: boolean;
 }
-
-const SIDO_LIST = [
-    '서울특별시',
-    '부산광역시',
-    '대구광역시',
-    '인천광역시',
-    '광주광역시',
-    '대전광역시',
-    '울산광역시',
-    '세종특별자치시',
-    '경기도',
-    '강원특별자치도',
-    '충청북도',
-    '충청남도',
-    '전북특별자치도',
-    '전라남도',
-    '경상북도',
-    '경상남도',
-    '제주특별자치도',
-];
 
 const SIGUNGU_MAP: Record<string, string[]> = {
     '서울특별시': ['강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구', '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구', '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구'],

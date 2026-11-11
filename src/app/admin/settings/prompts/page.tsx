@@ -26,7 +26,6 @@ interface Question {
     message: string;
     type?: string;
     choices: Choice[];
-    showIncomeTable: boolean;
 }
 
 export default function PromptsSettingsPage() {
@@ -392,7 +391,6 @@ function QuestionsEditor({ jsonString, onChange }: { jsonString: string, onChang
             id: 'new_question_' + Date.now(),
             message: '새 질문 내용',
             choices: [{ id: 'opt_1', label: '옵션 1', value: '옵션 1' }],
-            showIncomeTable: false
         }];
         updateGlobalJson(newQs);
         // 즉각 반영
@@ -490,16 +488,6 @@ function QuestionsEditor({ jsonString, onChange }: { jsonString: string, onChang
                                         onChange={e => handleQFieldChange(qIdx, 'id', e.target.value)}
                                         className="w-full px-3 py-2 border border-[var(--color-border)] rounded-[4px] bg-[var(--color-bg)] text-[var(--color-text)] focus:bg-[var(--color-bg-elevated)] text-sm"
                                     />
-                                </div>
-                                <div className="flex items-center gap-2 pt-2">
-                                    <input
-                                        type="checkbox"
-                                        id={`income_cb_${qIdx}`}
-                                        checked={q.showIncomeTable}
-                                        onChange={e => handleQFieldChange(qIdx, 'showIncomeTable', e.target.checked)}
-                                        className="w-4 h-4 text-[var(--color-accent)] rounded-[4px] border-[var(--color-border)]"
-                                    />
-                                    <label htmlFor={`income_cb_${qIdx}`} className="text-sm font-medium text-[var(--color-text-secondary)] cursor-pointer">채팅창에 소득기준표 버튼 노출하기</label>
                                 </div>
                             </div>
                         </div>

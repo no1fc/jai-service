@@ -52,7 +52,7 @@ export const DIAGNOSIS_QUESTIONS: DiagnosisQuestion[] = [
       choices: [1, 2, 3, 4, 5, 6, 7].map(n => ({
           id: `fam_${n}`, label: n === 7 ? '7인 이상' : `${n}인`, value: String(n),
       })) },
-    { id: 'monthlyIncome', type: 'number', placeholder: '예: 250 (만 원 단위)',
+    { id: 'monthlyIncome', type: 'number', choices: [], placeholder: '예: 250 (만 원 단위)',
       message: '가구원 전체의 월평균 소득(세전)을 만 원 단위로 입력해 주세요.\n소득이 없으면 0을 입력하세요.' },
     { id: 'property', type: 'choice', message: '가구원 전체의 재산 합계는 얼마인가요?\n(토지·건물·전세보증금 등, 부채 미차감)',
       choices: [

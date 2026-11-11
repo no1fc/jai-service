@@ -17,16 +17,11 @@ import type {
     ChatPhase,
     ChatStateSnapshot,
     UseChatReturn,
+    QuestionType,
 } from '@/types/chat';
 
 // 타입 re-export (기존 임포트 호환)
-export type { Choice, Message, DiagnosisResult, ChatPhase, ChatStateSnapshot, UseChatReturn } from '@/types/chat';
-
-// ====================================
-// 상수
-// ====================================
-
-const TOTAL_STEPS = 8;
+export type { Choice, Message, DiagnosisResult, ChatPhase, ChatStateSnapshot, UseChatReturn, QuestionType } from '@/types/chat';
 
 // ====================================
 // 헬퍼 함수
@@ -58,6 +53,28 @@ function createUserMessage(content: string): Message {
     };
 }
 
+/** /api/chat 응답 → RECEIVE_RESPONSE payload */
+function toReceivePayload(data: {
+    message: string; choices?: Choice[]; phase?: ChatPhase; currentStep?: number; totalSteps?: number;
+    questionId?: string; type?: QuestionType; result?: DiagnosisResult;
+}) {
+    return {
+        aiMessage: createAIMessage(data.message, data.choices),
+        historyEntry: { role: 'model' as const, content: data.message },
+        phase: data.phase,
+        currentStep: data.currentStep,
+        totalSteps: data.totalSteps,
+        questionId: data.questionId ?? null,
+        questionType: data.type ?? null,
+        result: data.phase === 'result' && data.result ? data.result : undefined,
+    };
+}
+
+/** 마지막 질문까지 답했는지 */
+const isQuestionsDone = (data: { phase?: string; currentStep?: number; totalSteps?: number }) =>
+    data.phase === 'questioning' && data.currentStep !== undefined && data.totalSteps !== undefined
+    && data.currentStep > data.totalSteps;
+
 // ====================================
 // Reducer 타입 정의
 // ====================================
@@ -70,7 +87,9 @@ interface ChatState {
     userAnswers: Record<string, string>;
     history: Array<{ role: 'user' | 'model'; content: string }>;
     result: DiagnosisResult | null;
-    showIncomeTable: boolean;
+    questionId: string | null;
+    questionType: QuestionType | null;
+    totalSteps: number;
     isError: boolean;
     lastAction: { type: 'choice' | 'text' | 'analysis'; data: unknown } | null;
     stateHistory: ChatStateSnapshot[];
@@ -81,7 +100,13 @@ type ChatAction =
     | { type: 'SET_LOADING'; payload: boolean }
     | { type: 'PREPARE_SEND'; payload: { lastAction: ChatState['lastAction']; userMessage: Message } }
     | { type: 'ADD_USER_DATA'; payload: { historyEntry: { role: 'user'; content: string }; answers: Record<string, string> } }
-    | { type: 'RECEIVE_RESPONSE'; payload: { aiMessage: Message; historyEntry: { role: 'model'; content: string }; phase?: ChatPhase; currentStep?: number; showIncomeTable?: boolean; result?: DiagnosisResult } }
+    | {
+        type: 'RECEIVE_RESPONSE'; payload: {
+            aiMessage: Message; historyEntry: { role: 'model'; content: string }; phase?: ChatPhase;
+            currentStep?: number; totalSteps?: number; questionId?: string | null; questionType?: QuestionType | null;
+            result?: DiagnosisResult;
+        };
+    }
     | { type: 'START_ANALYSIS'; payload: { loadingMessage: Message; lastAction: ChatState['lastAction'] } }
     | { type: 'ANALYSIS_SUCCESS'; payload: { resultMessage: Message; result: DiagnosisResult } }
     | { type: 'SET_ERROR'; payload: { errorMessage: Message } }
@@ -103,7 +128,9 @@ const initialState: ChatState = {
     userAnswers: {},
     history: [],
     result: null,
-    showIncomeTable: false,
+    questionId: null,
+    questionType: null,
+    totalSteps: 12,
     isError: false,
     lastAction: null,
     stateHistory: [],
@@ -123,7 +150,9 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
                         userAnswers: { ...state.userAnswers },
                         history: [...state.history],
                         result: state.result,
-                        showIncomeTable: state.showIncomeTable,
+                        questionId: state.questionId,
+                        questionType: state.questionType,
+                        totalSteps: state.totalSteps,
                     },
                 ],
             };
@@ -148,17 +177,19 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             };
 
         case 'RECEIVE_RESPONSE': {
-            const { aiMessage, historyEntry, phase, currentStep, showIncomeTable, result } = action.payload;
+            const { aiMessage, historyEntry, phase, currentStep, totalSteps, questionId, questionType, result } = action.payload;
             return {
                 ...state,
                 messages: [...state.messages, aiMessage],
                 history: [...state.history, historyEntry],
                 lastAction: null,
                 isLoading: false,
+                questionId: questionId ?? null,
+                questionType: questionType ?? null,
                 ...(currentStep !== undefined && { currentStep }),
+                ...(totalSteps !== undefined && { totalSteps }),
                 ...(phase !== undefined && { phase }),
-                ...(showIncomeTable !== undefined && { showIncomeTable }),
-                ...(result && { result, showIncomeTable: false }),
+                ...(result && { result }),
             };
         }
 
@@ -227,7 +258,9 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
                 userAnswers: prev.userAnswers,
                 history: prev.history,
                 result: prev.result,
-                showIncomeTable: prev.showIncomeTable,
+                questionId: prev.questionId,
+                questionType: prev.questionType,
+                totalSteps: prev.totalSteps,
                 stateHistory: state.stateHistory.slice(0, -1),
                 isError: false,
                 lastAction: null,
@@ -352,8 +385,9 @@ export function useChat(): UseChatReturn {
                 if (choice.value === 'start') nextPhase = 'questioning';
             }
 
-            const stepKey = `step_${state.currentStep}_${Date.now()}`;
-            const newAnswers = { ...state.userAnswers, [stepKey]: `${choice.label}: ${choice.value}` };
+            const newAnswers = state.questionId
+                ? { ...state.userAnswers, [state.questionId]: choice.value }
+                : state.userAnswers;
 
             dispatch({
                 type: 'ADD_USER_DATA',
@@ -365,20 +399,10 @@ export function useChat(): UseChatReturn {
 
             const data = await callChatAPI(nextPhase, newHistory, newAnswers, state.currentStep);
 
-            dispatch({
-                type: 'RECEIVE_RESPONSE',
-                payload: {
-                    aiMessage: createAIMessage(data.message, data.choices),
-                    historyEntry: { role: 'model', content: data.message },
-                    phase: data.phase as ChatPhase | undefined,
-                    currentStep: data.currentStep,
-                    showIncomeTable: !!data.showIncomeTable,
-                    result: data.phase === 'result' && data.result ? (data.result as DiagnosisResult) : undefined,
-                },
-            });
+            dispatch({ type: 'RECEIVE_RESPONSE', payload: toReceivePayload(data) });
 
             // analyzing 단계로 자동 전환 (마지막 질문 완료 시)
-            if (data.phase === 'questioning' && data.currentStep > TOTAL_STEPS) {
+            if (isQuestionsDone(data)) {
                 await triggerAnalysis(newHistory, newAnswers, state.currentStep);
             }
         } catch {
@@ -387,7 +411,7 @@ export function useChat(): UseChatReturn {
                 payload: { errorMessage: createAIMessage('응답 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.') },
             });
         }
-    }, [state.isLoading, state.history, state.phase, state.currentStep, state.userAnswers, callChatAPI, triggerAnalysis]);
+    }, [state.isLoading, state.history, state.phase, state.currentStep, state.userAnswers, state.questionId, callChatAPI, triggerAnalysis]);
 
     /**
      * 텍스트 전송 함수 ('기타' 선택 후 자유 텍스트 입력 시)
@@ -407,8 +431,9 @@ export function useChat(): UseChatReturn {
         try {
             const newHistory = [...state.history, { role: 'user' as const, content: text }];
 
-            const stepKey = `step_${state.currentStep}_text_${Date.now()}`;
-            const newAnswers = { ...state.userAnswers, [stepKey]: `기타입력: ${text}` };
+            const newAnswers = state.questionId
+                ? { ...state.userAnswers, [state.questionId]: text.trim() }
+                : state.userAnswers;
 
             dispatch({
                 type: 'ADD_USER_DATA',
@@ -420,19 +445,9 @@ export function useChat(): UseChatReturn {
 
             const data = await callChatAPI(state.phase, newHistory, newAnswers, state.currentStep);
 
-            dispatch({
-                type: 'RECEIVE_RESPONSE',
-                payload: {
-                    aiMessage: createAIMessage(data.message, data.choices),
-                    historyEntry: { role: 'model', content: data.message },
-                    phase: data.phase as ChatPhase | undefined,
-                    currentStep: data.currentStep,
-                    showIncomeTable: !!data.showIncomeTable,
-                    result: data.phase === 'result' && data.result ? (data.result as DiagnosisResult) : undefined,
-                },
-            });
+            dispatch({ type: 'RECEIVE_RESPONSE', payload: toReceivePayload(data) });
 
-            if (data.phase === 'questioning' && data.currentStep > TOTAL_STEPS) {
+            if (isQuestionsDone(data)) {
                 await triggerAnalysis(newHistory, newAnswers, state.currentStep);
             }
         } catch {
@@ -441,7 +456,7 @@ export function useChat(): UseChatReturn {
                 payload: { errorMessage: createAIMessage('응답 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.') },
             });
         }
-    }, [state.isLoading, state.history, state.phase, state.currentStep, state.userAnswers, callChatAPI, triggerAnalysis]);
+    }, [state.isLoading, state.history, state.phase, state.currentStep, state.userAnswers, state.questionId, callChatAPI, triggerAnalysis]);
 
     /**
      * 마지막 작업을 다시 시도하는 함수
@@ -501,11 +516,11 @@ export function useChat(): UseChatReturn {
         messages: state.messages,
         isLoading: state.isLoading,
         currentStep: state.currentStep,
-        totalSteps: TOTAL_STEPS,
+        totalSteps: state.totalSteps,
         phase: state.phase,
         result: state.result,
         isError: state.isError,
-        showIncomeTable: state.showIncomeTable,
+        questionType: state.questionType,
         canGoBack: state.stateHistory.length > 0,
         userAnswers: state.userAnswers,
         sendChoice,
