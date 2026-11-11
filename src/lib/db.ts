@@ -36,7 +36,7 @@ let schemaInitialized = false;
 /**
  * MSSQL 커넥션 풀 반환 (최초 호출 시 연결 + 스키마 초기화)
  */
-async function getPool(): Promise<ConnectionPool> {
+export async function getPool(): Promise<ConnectionPool> {
     if (!poolPromise) {
         poolPromise = sql.connect(mssqlConfig);
     }
@@ -134,6 +134,27 @@ async function initSchema(pool: ConnectionPool): Promise<void> {
                 result_type NVARCHAR(100) NULL,
                 created_at DATETIME DEFAULT GETDATE()
             );
+        END
+    `);
+
+    // 5. 상담 신청(리드) 테이블 생성
+    await pool.request().query(`
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'leads')
+        BEGIN
+            CREATE TABLE leads (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                name NVARCHAR(50) NOT NULL,
+                phone VARCHAR(20) NOT NULL,
+                region NVARCHAR(50) NOT NULL,
+                desired_job NVARCHAR(100) NOT NULL DEFAULT '',
+                source VARCHAR(20) NOT NULL,
+                payload NVARCHAR(MAX) NOT NULL,
+                consent_at DATETIME2 NOT NULL,
+                report NVARCHAR(MAX) NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'new',
+                created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+            );
+            CREATE INDEX IX_leads_created_at ON leads (created_at DESC);
         END
     `);
 }

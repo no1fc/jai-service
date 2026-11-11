@@ -12,6 +12,7 @@ import ResultCard from '@/components/result/ResultCard';
 import BranchCard from '@/components/result/BranchCard';
 import MapWidget from '@/components/result/MapWidget';
 import RegionSelector from './RegionSelector';
+import LeadForm from '@/components/lead/LeadForm';
 import { Branch } from '@/types/db';
 import { ArrowLeft } from 'lucide-react';
 import { logger } from '@/lib/logger';
@@ -35,6 +36,7 @@ export default function ChatContainer() {
         questionId,
         questionType,
         canGoBack,
+        userAnswers,
         sendChoice,
         sendText,
         goBack,
@@ -152,6 +154,15 @@ export default function ChatContainer() {
                                 <div className="flex flex-col h-full">
                                     {branch !== 'loading' && result && (
                                         <BranchCard branch={branch === 'none' ? null : branch} diagnosisType={result.type} />
+                                    )}
+                                </div>
+                                <div className="lg:col-span-2 w-full max-w-xl mx-auto">
+                                    {result && (
+                                        <LeadForm
+                                            source="diagnosis"
+                                            payload={{ answers: userAnswers, result }}
+                                            defaultRegion={(userAnswers.region ?? '').split(' ')[0]}
+                                        />
                                     )}
                                 </div>
                             </div>

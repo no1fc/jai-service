@@ -85,6 +85,31 @@ export const chatRequestSchema = z.object({
 });
 
 // ==========================================
+// Leads (상담 신청)
+// ==========================================
+
+export const LEAD_SOURCES = ['qna', 'diagnosis', 'career'] as const;
+export const LEAD_STATUSES = ['new', 'contacted', 'enrolled', 'dropped'] as const;
+const MAX_PAYLOAD_CHARS = 20000;
+
+export const leadSchema = z.object({
+    name: z.string().trim().min(2, '이름을 입력해주세요.').max(50),
+    phone: z.string().trim()
+        .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, '휴대폰 번호 형식이 올바르지 않습니다.')
+        .transform(v => v.replace(/-/g, '')),
+    region: z.string().trim().min(1, '지역을 선택해주세요.').max(50),
+    desiredJob: z.string().trim().max(100).optional().default(''),
+    source: z.enum(LEAD_SOURCES),
+    payload: z.record(z.string(), z.unknown()).default({})
+        .refine(p => JSON.stringify(p).length <= MAX_PAYLOAD_CHARS, '전송 데이터가 너무 큽니다.'),
+    consent: z.literal(true, { message: '개인정보 수집·이용에 동의해주세요.' }),
+});
+
+export type LeadInput = z.infer<typeof leadSchema>;
+
+export const updateLeadStatusSchema = z.object({ status: z.enum(LEAD_STATUSES) });
+
+// ==========================================
 // 유틸리티
 // ==========================================
 
