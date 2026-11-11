@@ -123,7 +123,7 @@ export default function PromptsSettingsPage() {
         const newCats = categories.filter(c => c.key !== catKey);
 
         // 화면 포커스가 지워진 탭에 있었다면 1번째로 이동
-        if (activeTab === catKey) setActiveTab(categories[0].key);
+        if (activeTab === catKey) setActiveTab(newCats[0]?.key ?? '');
 
         saveCategoryMetaAndData(newCats);
     };
