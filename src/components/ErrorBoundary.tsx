@@ -56,10 +56,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
                     </div>
-                    <p className="text-[var(--color-text-primary)] text-sm font-medium mb-1">
+                    <p className="text-[var(--color-text)] text-sm font-medium mb-1">
                         {this.props.section ? `${this.props.section}에서 ` : ''}오류가 발생했습니다
                     </p>
-                    <p className="text-[var(--color-text-tertiary)] text-xs mb-4">
+                    <p className="text-[var(--color-text-muted)] text-xs mb-4">
                         잠시 후 다시 시도해주세요.
                     </p>
                     <button

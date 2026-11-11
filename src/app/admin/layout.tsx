@@ -77,15 +77,15 @@ export default function AdminLayout({
                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
-            {/* 사이드바 */}
+            {/* 사이드바 (어두운 배경을 유지해 대비를 지킨다) */}
             <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-[var(--color-bg)] text-white transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-40 w-64 bg-text text-white transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:flex-shrink-0 flex flex-col
       `}>
-                <div className="h-20 flex items-center px-6 border-b border-[var(--color-border)]">
+                <div className="h-20 flex items-center px-6 border-b border-white/10">
                     <Link href="/admin" className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <span className="text-[var(--color-accent)]">NESS</span> <span className="text-[var(--color-text-secondary)] text-lg font-medium">관리자</span>
+                        <span className="text-[var(--color-accent)]">NESS</span> <span className="text-white/60 text-lg font-medium">관리자</span>
                     </Link>
                 </div>
 
@@ -101,14 +101,14 @@ export default function AdminLayout({
                             return (
                                 <div
                                     key={item.href}
-                                    className="flex items-center justify-between px-4 py-3 rounded-[4px] text-sm font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-elevated)]/30 cursor-not-allowed"
+                                    className="flex items-center justify-between px-4 py-3 rounded-[4px] text-sm font-medium text-white/40 bg-white/5 cursor-not-allowed"
                                     title="최고 관리자 전용 메뉴입니다"
                                 >
                                     <div className="flex items-center gap-3 opacity-60">
                                         <item.icon size={18} />
                                         {item.name}
                                     </div>
-                                    <Lock size={14} className="text-[var(--color-text-muted)]" />
+                                    <Lock size={14} className="text-white/40" />
                                 </div>
                             );
                         }
@@ -122,7 +122,7 @@ export default function AdminLayout({
                   flex items-center gap-3 px-4 py-3 rounded-[4px] text-sm font-medium transition-colors
                   ${isActive
                                         ? 'bg-[var(--color-accent)] text-white'
-                                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-white'}
+                                        : 'text-white/70 hover:bg-white/10 hover:text-white'}
                 `}
                             >
                                 <item.icon size={18} />
@@ -132,10 +132,10 @@ export default function AdminLayout({
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-[var(--color-border)]">
+                <div className="p-4 border-t border-white/10">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 px-4 py-3 w-full rounded-[4px] text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-white transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 w-full rounded-[4px] text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors"
                     >
                         <LogOut size={18} />
                         로그아웃

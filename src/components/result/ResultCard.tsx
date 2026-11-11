@@ -6,29 +6,29 @@ import { DiagnosisResult } from '@/hooks/useChat';
 const TYPE_CONFIG = {
     '1유형_요건심사형': {
         icon: CheckCircle2,
-        iconColor: '#30d158',
-        borderColor: 'rgba(48, 209, 88, 0.2)',
+        iconColor: 'var(--color-success)',
+        borderColor: 'var(--color-success)',
         label: '1유형 (요건심사형)',
         emoji: '🎉',
     },
     '1유형_선발형': {
         icon: Trophy,
-        iconColor: '#007aff',
-        borderColor: 'rgba(0, 122, 255, 0.2)',
+        iconColor: 'var(--color-accent)',
+        borderColor: 'var(--color-accent)',
         label: '1유형 (선발형)',
         emoji: '🏆',
     },
     '2유형': {
         icon: AlertTriangle,
-        iconColor: '#ff9f0a',
-        borderColor: 'rgba(255, 159, 10, 0.1)',
+        iconColor: 'var(--color-warning)',
+        borderColor: 'var(--color-warning)',
         label: '2유형 (일반형)',
         emoji: '📋',
     },
     '제한': {
         icon: XCircle,
-        iconColor: '#ff3b30',
-        borderColor: 'rgba(255, 59, 48, 0.2)',
+        iconColor: 'var(--color-danger)',
+        borderColor: 'var(--color-danger)',
         label: '참여 제한',
         emoji: '⚠️',
     },
@@ -42,11 +42,11 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
     return (
         <div className="w-full h-full animate-reveal-up flex flex-col">
             <div
-                className="bg-bg-elevated rounded-[4px] p-5 md:p-6 border overflow-hidden relative flex flex-col h-full"
+                className="bg-bg-elevated rounded-[var(--radius-card)] p-5 md:p-6 border overflow-hidden relative flex flex-col h-full"
                 style={{ borderColor: config.borderColor }}
             >
                 <div className="flex flex-col items-center text-center mb-4 relative z-10 shrink-0">
-                    <div className="w-14 h-14 rounded-[4px] bg-bg flex items-center justify-center mb-4 border border-[rgba(15,0,0,0.12)]">
+                    <div className="w-14 h-14 rounded-[4px] bg-bg flex items-center justify-center mb-4 border border-border">
                         <IconComponent size={28} color={config.iconColor} />
                     </div>
                     <p className="text-accent text-[10px] font-black uppercase tracking-[0.3em] mb-2">Diagnosis Result</p>
@@ -55,7 +55,7 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
                 </div>
 
                 {result.score !== null && result.score !== undefined && (
-                    <div className="bg-bg rounded-[4px] p-5 mb-5 border border-[rgba(15,0,0,0.12)] relative z-10 shrink-0">
+                    <div className="bg-bg rounded-[4px] p-5 mb-5 border border-border relative z-10 shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="text-left">
                                 <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mb-1">Eligibility Score</p>
@@ -68,7 +68,7 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
                         </div>
 
                         {result.scoreDetails && result.scoreDetails.length > 0 && (
-                            <div className="mt-5 pt-4 border-t border-[rgba(15,0,0,0.12)] space-y-2.5">
+                            <div className="mt-5 pt-4 border-t border-border space-y-2.5">
                                 {result.scoreDetails.map((detail, idx) => (
                                     <div key={idx} className="flex items-start gap-3 text-xs text-text-muted leading-relaxed group">
                                         <div className="w-1.5 h-1.5 rounded-full bg-accent/30 mt-1" />
@@ -106,7 +106,7 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
                             <span className="text-text-muted text-[10px] font-black uppercase tracking-[0.2em]">AI Mentor's Advice</span>
                         </div>
                         {result.tips.map((tip, idx) => (
-                            <div key={idx} className="p-4 rounded-[4px] bg-bg border border-[rgba(15,0,0,0.12)] text-xs md:text-sm text-text-secondary font-medium leading-relaxed hover:bg-bg-elevated transition-colors">
+                            <div key={idx} className="p-4 rounded-[4px] bg-bg border border-border text-xs md:text-sm text-text-secondary font-medium leading-relaxed hover:bg-bg-elevated transition-colors">
                                 {tip}
                             </div>
                         ))}
@@ -119,7 +119,7 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
                             href="https://www.work24.go.kr"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-full h-12 md:h-14 rounded-[4px] bg-bg border border-[rgba(15,0,0,0.12)] text-text font-black text-xs md:text-sm flex items-center justify-center gap-3 transition-all hover:bg-bg-elevated"
+                            className="w-full h-12 md:h-14 rounded-[4px] bg-bg border border-border text-text font-black text-xs md:text-sm flex items-center justify-center gap-3 transition-all hover:bg-bg-elevated"
                         >
                             고용24 공식 사이트 방문
                         </a>

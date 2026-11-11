@@ -16,7 +16,7 @@ export default function ChatMessage({ message, isLatest }: ChatMessageProps) {
     return (
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto w-full">
             {/* 아이콘 상단 중앙 */}
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[4px] bg-bg-elevated flex items-center justify-center border border-[rgba(15,0,0,0.12)] mb-6">
+            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[4px] bg-bg-elevated flex items-center justify-center border border-border mb-6">
                 <Sparkles size={24} className="text-accent" />
             </div>
 

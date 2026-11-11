@@ -118,7 +118,7 @@ export default function ChatContainer() {
     return (
         <div className="flex flex-col h-full relative">
             {/* 상단 진행률 바 & 이전 버튼 (고정) */}
-            <div className="absolute top-0 left-0 w-full z-30 px-4 md:px-8 pt-[80px] md:pt-[100px] flex flex-col pointer-events-none gap-4">
+            <div className="absolute top-0 left-0 w-full z-30 px-4 md:px-8 pt-4 flex flex-col pointer-events-none gap-4">
                 <div className="w-full max-w-4xl mx-auto flex flex-col gap-4 pointer-events-auto">
                     {(phase === 'questioning' || phase === 'analyzing' || phase === 'result') && (
                         <ProgressBar current={phase === 'questioning' ? currentStep : totalSteps} total={totalSteps} />
@@ -129,7 +129,7 @@ export default function ChatContainer() {
                         <div className="flex justify-start mt-2">
                             <button
                                 onClick={goBack}
-                                className="flex items-center gap-2 px-4 py-2 bg-bg-elevated border border-[rgba(15,0,0,0.12)] rounded-[4px] text-sm font-medium text-text-secondary hover:text-text hover:bg-bg-elevated transition-all duration-300"
+                                className="flex items-center gap-2 px-4 py-2 bg-bg-elevated border border-border rounded-[4px] text-sm font-medium text-text-secondary hover:text-text hover:bg-bg-elevated transition-all duration-300"
                             >
                                 <ArrowLeft className="w-4 h-4" />
                                 이전 질문
@@ -141,7 +141,7 @@ export default function ChatContainer() {
 
             {/* 1-View 1-Question 중앙 메인 콘텐츠 영역 (스크롤) */}
             <div className="flex-1 overflow-y-auto px-6">
-                <div className={`min-h-[calc(100vh-80px)] flex flex-col w-full mx-auto ${phase === 'result' ? 'max-w-[1600px] pt-[80px] md:pt-[100px] pb-6' : 'max-w-4xl pt-[180px] md:pt-[200px] pb-32'
+                <div className={`min-h-[calc(100vh-80px)] flex flex-col w-full mx-auto ${phase === 'result' ? 'max-w-[1600px] pt-6 pb-6' : 'max-w-4xl pt-28 pb-32'
                     }`}>
                     <div className={`w-full flex flex-col items-center ${phase === 'result' ? 'flex-1' : 'my-auto'}`}>
                         {phase === 'result' ? (
@@ -215,7 +215,7 @@ export default function ChatContainer() {
                                 {/* 입력 컨트롤 영역: 중앙 질문 바로 아래에 배치 */}
                                 {showInput && (
                                     <div className="w-full max-w-3xl animate-fade-in" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
-                                        <div className="bg-bg-elevated border border-[rgba(15,0,0,0.12)] rounded-[4px] p-4">
+                                        <div className="bg-bg-elevated border border-border rounded-[4px] p-4">
                                             <ChoiceChips
                                                 choices={currentChoices}
                                                 onSelect={sendChoice}

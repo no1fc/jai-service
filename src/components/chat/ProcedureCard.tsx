@@ -11,7 +11,7 @@ export default function ProcedureCard() {
     ];
 
     return (
-        <div className="rounded-[4px] bg-bg-elevated border border-[rgba(15,0,0,0.12)] p-8 my-6 animate-reveal-up max-w-sm">
+        <div className="rounded-[4px] bg-bg-elevated border border-border p-8 my-6 animate-reveal-up max-w-sm">
             <div className="flex items-center gap-3 mb-8">
                 <div className="w-1.5 h-6 bg-accent rounded-[4px]" />
                 <h3 className="text-text-secondary font-black text-xs uppercase tracking-[0.2em]">
@@ -22,7 +22,7 @@ export default function ProcedureCard() {
             <div className="space-y-6">
                 {procedures.map((p, idx) => (
                     <div key={p.id} className="flex items-center gap-5 group">
-                        <div className="w-12 h-12 rounded-[4px] bg-bg flex items-center justify-center border border-[rgba(15,0,0,0.12)] group-hover:border-border-strong transition-colors">
+                        <div className="w-12 h-12 rounded-[4px] bg-bg flex items-center justify-center border border-border group-hover:border-border-strong transition-colors">
                             <p.icon size={20} className="text-text-muted group-hover:text-accent transition-colors" />
                         </div>
                         <div className="flex-1">

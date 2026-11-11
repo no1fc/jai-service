@@ -111,8 +111,8 @@ export default function MapWidget({ branch }: MapWidgetProps) {
     if (!branch) {
         return (
             <div className="w-full h-full min-h-[300px] animate-reveal-up flex-1">
-                <div className="bg-bg-elevated rounded-[4px] p-8 border border-[rgba(15,0,0,0.12)] relative overflow-hidden h-full flex flex-col items-center justify-center text-center group">
-                    <div className="w-16 h-16 rounded-[4px] bg-bg flex items-center justify-center mb-6 border border-[rgba(15,0,0,0.12)] group-hover:bg-bg-elevated transition-colors">
+                <div className="bg-bg-elevated rounded-[4px] p-8 border border-border relative overflow-hidden h-full flex flex-col items-center justify-center text-center group">
+                    <div className="w-16 h-16 rounded-[4px] bg-bg flex items-center justify-center mb-6 border border-border group-hover:bg-bg-elevated transition-colors">
                         <MapIcon size={28} className="text-text-muted group-hover:text-accent transition-colors" />
                     </div>
                     <h3 className="text-text-secondary font-bold text-lg mb-2">지도가 표시될 공간입니다</h3>
@@ -156,7 +156,7 @@ export default function MapWidget({ branch }: MapWidgetProps) {
 
                     {/* API 키 없음 */}
                     {!apiKey && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center border border-[rgba(15,0,0,0.12)] bg-bg z-10 px-8 text-center">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center border border-border bg-bg z-10 px-8 text-center">
                             <MapPinOff size={40} className="text-text-muted mb-4" />
                             <p className="text-text-secondary font-bold mb-2">지도를 표시할 수 없습니다</p>
                             <p className="text-text-muted text-xs">API 키가 등록되지 않았습니다.</p>

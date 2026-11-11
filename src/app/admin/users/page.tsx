@@ -141,7 +141,7 @@ export default function AdminUsersManagementPage() {
 
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-[var(--color-success)] hover:bg-[#248a3d] text-white px-4 py-2.5 rounded-[4px] font-medium transition-colors flex items-center gap-2"
+                    className="bg-[var(--color-success)] hover:opacity-90 text-white px-4 py-2.5 rounded-[4px] font-medium transition-colors flex items-center gap-2"
                 >
                     <ShieldPlus size={18} />
                     신규 계정 생성
@@ -249,7 +249,7 @@ export default function AdminUsersManagementPage() {
                             </div>
                             <div className="pt-4 flex justify-end gap-3 border-t border-[var(--color-border)] mt-6">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg)] rounded-[4px]">취소</button>
-                                <button disabled={isSaving} type="submit" className="px-4 py-2 bg-[var(--color-success)] hover:bg-[#248a3d] text-white rounded-[4px] flex items-center">
+                                <button disabled={isSaving} type="submit" className="px-4 py-2 bg-[var(--color-success)] hover:opacity-90 text-white rounded-[4px] flex items-center">
                                     {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}생성
                                 </button>
                             </div>
