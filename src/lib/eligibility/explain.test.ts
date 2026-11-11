@@ -38,4 +38,17 @@ describe('explain', () => {
         expect(d.type).toBe('2유형');
         expect(d.subType).toBe('청년');
     });
+
+    it('요건심사형(score === null)일 때 프롬프트에 빈 줄과 선발형 점수가 없다', () => {
+        // 요건심사형: workDays가 'over100'이고, 나머지는 요건심사형 조건을 만족하게 설정
+        const requirementResult = judgeEligibility({ ...answers, workDays: 'over100' });
+        expect(requirementResult.type).toBe('requirement');
+        expect(requirementResult.score).toBeNull();
+
+        const prompt = buildExplanationPrompt(requirementResult, answers);
+        // 빈 줄이 남으면 '\n\n[사용자 정보]' 패턴이 생김
+        expect(prompt).not.toContain('\n\n[사용자 정보]');
+        // 선발형 점수 섹션이 없어야 함
+        expect(prompt).not.toContain('[선발형 예상 점수]');
+    });
 });

@@ -72,9 +72,9 @@ function selectionScore(a: DiagnosisAnswers, ratio: number, youth: boolean) {
     if (similarProgramPenalty > 0) {
         score -= similarProgramPenalty;
         if (a.similarProgram === 'within1') {
-            details.push('유사제도 수혜(1년 이내) 감점: -10점');
+            details.push(`유사제도 수혜(1년 이내) 감점: -${SIMILAR_PROGRAM_PENALTY.within1}점`);
         } else if (a.similarProgram === 'within2') {
-            details.push('유사제도 수혜(1~2년 이내) 감점: -5점');
+            details.push(`유사제도 수혜(1~2년 이내) 감점: -${SIMILAR_PROGRAM_PENALTY.within2}점`);
         }
     }
     return { score, details };

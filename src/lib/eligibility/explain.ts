@@ -11,14 +11,15 @@ const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
 export function buildExplanationPrompt(result: EligibilityResult, answers: DiagnosisAnswers): string {
     const c = CRITERIA_2026;
+    // 선발형 점수 라인을 선택적으로 포함 (빈 줄이 남지 않게 함)
+    const scoreLine = result.score !== null ? `[선발형 예상 점수] ${result.score}점 (${result.scoreDetails.join(', ')})\n` : '';
     return `당신은 국민취업지원제도 상담을 돕는 친절한 안내자입니다.
 판정은 이미 규칙으로 확정되었습니다. 판정을 바꾸거나 다른 유형을 제시하지 마세요.
 
 [판정 결과] ${result.label}
 [판정 근거]
 ${result.reasons.map(r => `- ${r}`).join('\n')}
-${result.score !== null ? `[선발형 예상 점수] ${result.score}점 (${result.scoreDetails.join(', ')})` : ''}
-[사용자 정보] 만 ${answers.age}세, 가구원 ${answers.familySize}인, 거주지 ${answers.region}
+${scoreLine}[사용자 정보] 만 ${answers.age}세, 가구원 ${answers.familySize}인, 거주지 ${answers.region}
 [참고] Ⅰ유형 구직촉진수당: 월 ${won(c.type1MonthlyAllowance)} × 최대 ${c.type1AllowanceMonths}개월 (${c.year}년 기준)
 
 [작성 규칙]
