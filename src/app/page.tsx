@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MessageCircleQuestion, ClipboardCheck, FileText, ArrowRight } from 'lucide-react';
+import { MessageCircleQuestion, ClipboardCheck, FileText, BarChart3, ArrowRight } from 'lucide-react';
 
 const SERVICES = [
     {
@@ -16,6 +16,11 @@ const SERVICES = [
         href: '/career', icon: FileText, title: 'AI 1분 자기소개서·역량 진단',
         desc: '희망 직무와 경험 몇 줄이면 자기소개서 초안과 역량 분석을 받아볼 수 있어요.',
         cta: '무료로 받기',
+    },
+    {
+        href: '/analysis', icon: BarChart3, title: 'AI 직무·산업 분석',
+        desc: '궁금한 직무나 산업을 키워드 하나로 분석해 채용 동향·연봉·준비 로드맵을 받아보세요.',
+        cta: '분석하기',
     },
 ];
 
@@ -51,7 +56,7 @@ export default function LandingPage() {
 
             <section aria-labelledby="services" className="mx-auto max-w-5xl px-4 pb-12">
                 <h2 id="services" className="sr-only">서비스</h2>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     {SERVICES.map(({ href, icon: Icon, title, desc, cta }) => (
                         <Link key={href} href={href}
                             className="group flex flex-col rounded-[var(--radius-card)] border border-border bg-bg-elevated p-6 hover:border-accent hover:shadow-sm transition">

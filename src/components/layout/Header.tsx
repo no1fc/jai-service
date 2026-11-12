@@ -7,6 +7,7 @@ const NAV = [
     { href: '/ask', label: 'Q&A 상담' },
     { href: '/chat', label: '모의진단' },
     { href: '/career', label: '자소서·역량' },
+    { href: '/analysis', label: '직무·산업 분석' },
 ];
 
 export default function Header() {
