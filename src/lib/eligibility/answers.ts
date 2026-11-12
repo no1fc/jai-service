@@ -28,15 +28,15 @@ export const DIAGNOSIS_QUESTIONS: DiagnosisQuestion[] = [
           { id: 'mil_0', label: '해당 없음', value: '0' },
           { id: 'mil_12', label: '1년 이하', value: '12' },
           { id: 'mil_21', label: '1년 초과 ~ 2년 이하', value: '21' },
-          { id: 'mil_36', label: '2년 초과', value: '36' },
+          { id: 'mil_36', label: '2년 초과 (최대 3년까지 인정)', value: '36' },
       ] },
     { id: 'status', type: 'choice', message: '현재 상황을 알려주세요.',
       choices: [
           { id: 'st_unemployed', label: '미취업 (구직 중)', value: 'unemployed' },
           { id: 'st_graduating', label: '졸업예정자 (마지막 학기)', value: 'graduating' },
           { id: 'st_student', label: '재학 중', value: 'student' },
-          { id: 'st_part', label: '주 15시간 미만 근로 중', value: 'employedPart' },
-          { id: 'st_employed', label: '주 15시간 이상 근로 중', value: 'employed15' },
+          { id: 'st_employed', label: '주 30시간 이상 근로 중', value: 'employed30' },
+          { id: 'st_part', label: '주 30시간 미만 근로 중', value: 'employedPart' },
       ] },
     { id: 'excluded', type: 'choice', message: '다음 중 해당하는 것이 있나요?',
       choices: [
@@ -96,7 +96,7 @@ const yesNoBool = z.enum(['yes', 'no']).transform(v => v === 'yes');
 const answersSchema = z.object({
     age: intString(NUMBER_LIMITS.age.min, NUMBER_LIMITS.age.max),
     militaryMonths: intString(0, 120),
-    status: z.enum(['unemployed', 'graduating', 'student', 'employed15', 'employedPart']),
+    status: z.enum(['unemployed', 'graduating', 'student', 'employed30', 'employedPart']),
     excluded: z.enum(['none', 'livelihood', 'participating', 'military', 'prison']),
     specialGroup: yesNoBool,
     familySize: intString(1, 7),

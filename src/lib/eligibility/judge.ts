@@ -98,8 +98,8 @@ export function judgeEligibility(
     if (a.status === 'student') {
         return result('excluded', base, ['재학 중인 학생은 참여할 수 없습니다. (마지막 학기 졸업예정자는 가능)']);
     }
-    if (a.status === 'employed15') {
-        return result('excluded', base, ['주 15시간 이상 근로 중이면 참여가 제한됩니다.']);
+    if (a.status === 'employed30') {
+        return result('excluded', base, ['주 30시간 이상 근로 중이면 참여가 제한됩니다. (주 30시간 미만 근로자는 참여 가능)']);
     }
 
     // 2. Ⅰ유형 요건심사형

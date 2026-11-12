@@ -72,12 +72,16 @@ describe('judgeEligibility', () => {
         expect(judge({ age: 50, monthlyIncome: 3_000_000, specialGroup: true }).type).toBe('type2_special');
     });
 
-    it('연령 범위 밖, 재학생, 주 15시간 이상 근로, 제외 사유는 excluded', () => {
+    it('연령 범위 밖, 재학생, 주 30시간 이상 근로, 제외 사유는 excluded', () => {
         expect(judge({ age: 14 }).type).toBe('excluded');
         expect(judge({ age: 70 }).type).toBe('excluded');
         expect(judge({ status: 'student' }).type).toBe('excluded');
-        expect(judge({ status: 'employed15' }).type).toBe('excluded');
+        expect(judge({ status: 'employed30' }).type).toBe('excluded');
         expect(judge({ excluded: 'livelihood' }).type).toBe('excluded');
+    });
+
+    it('주 30시간 미만 근로자는 참여 제한에서 제외되지 않는다', () => {
+        expect(judge({ status: 'employedPart' }).type).not.toBe('excluded');
     });
 
     it('졸업예정자는 제외하지 않는다', () => {

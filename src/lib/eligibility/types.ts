@@ -4,7 +4,7 @@
 
 export type PropertyBand = 'under1' | 'under2_5' | 'under4' | 'under5' | 'over5';
 export type WorkDaysBand = 'none' | 'under30' | 'under60' | 'under100' | 'over100';
-export type WorkStatus = 'unemployed' | 'graduating' | 'student' | 'employed15' | 'employedPart';
+export type WorkStatus = 'unemployed' | 'graduating' | 'student' | 'employed30' | 'employedPart';
 export type ExcludedReason = 'none' | 'livelihood' | 'participating' | 'military' | 'prison';
 export type SimilarProgramBand = 'none' | 'within1' | 'within2';
 
