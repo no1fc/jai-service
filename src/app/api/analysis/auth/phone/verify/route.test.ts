@@ -15,7 +15,7 @@ vi.mock('@/lib/analysis/users', () => ({ upsertUser: vi.fn() }));
 vi.mock('@/lib/analysis/auth/user-session', () => ({ issueUserSession: vi.fn() }));
 
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
-import { verifyCode } from '@/lib/analysis/auth/phone';
+import { MAX_ATTEMPTS, verifyCode } from '@/lib/analysis/auth/phone';
 import { incrementAttempts, latestVerification, markVerified } from '@/lib/analysis/auth/phone-store';
 import { upsertUser } from '@/lib/analysis/users';
 import { issueUserSession } from '@/lib/analysis/auth/user-session';
@@ -78,9 +78,21 @@ describe('POST /api/analysis/auth/phone/verify', () => {
         expect(issueUserSession).not.toHaveBeenCalled();
     });
 
+    it('이미 시도 횟수 상한(MAX_ATTEMPTS)에 도달해 store가 더 증가시키지 못하고(null) 반환해도 비교 없이 통일된 400으로 거부한다', async () => {
+        // phone-store.ts의 incrementAttempts는 WHERE attempts < @maxAttempts에 걸리면 null을 반환한다 —
+        // 라우트는 "이미 사용됨"과 "상한 도달"을 구분하지 않고 같은 통일 메시지로 응답해야 한다.
+        vi.mocked(incrementAttempts).mockResolvedValue(null);
+        const res = await POST(req(VALID_BODY));
+        expect(incrementAttempts).toHaveBeenCalledWith(7, MAX_ATTEMPTS);
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.error).toBe(GENERIC_INVALID);
+        expect(verifyCode).not.toHaveBeenCalled();
+    });
+
     it('비교 전에 시도 횟수를 먼저 원자적으로 증가시키고, store가 반환한 실제 값으로만 비교한다(로컬 +1 계산 금지)', async () => {
         await POST(req(VALID_BODY));
-        expect(incrementAttempts).toHaveBeenCalledWith(7);
+        expect(incrementAttempts).toHaveBeenCalledWith(7, MAX_ATTEMPTS);
         // store가 반환한 값(5)을 그대로 써야 한다 — row.attempts(4)+1을 로컬로 계산해서 쓰면 안 된다.
         expect(verifyCode).toHaveBeenCalledWith(
             expect.objectContaining({ attempts: 5 }),

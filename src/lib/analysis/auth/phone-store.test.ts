@@ -57,6 +57,8 @@ describe('insertVerificationIfAllowed', () => {
         expect(log[0].sql).toContain('WHERE NOT EXISTS');
         expect(log[0].sql).toContain('COUNT(*)');
         expect(log[0].sql).not.toContain('CAST(created_at AS DATE)'); // 인덱스를 막는 CAST 금지(요구사항 5)
+        // READ COMMITTED에서 두 서브쿼리 모두 UPDLOCK+HOLDLOCK 없이는 phantom-read 레이스가 가능하므로 둘 다 걸려야 한다.
+        expect(log[0].sql.match(/WITH \(UPDLOCK, HOLDLOCK\)/g)).toHaveLength(2);
         expect(log[0].inputs).toEqual([
             { name: 'phone', type: sql.VarChar(20), value: '01012345678' },
             { name: 'codeHash', type: sql.VarChar(64), value: 'hash' },
@@ -109,21 +111,34 @@ describe('latestVerification', () => {
 });
 
 describe('incrementAttempts', () => {
-    it('OUTPUT INSERTED.attempts로 증가된 값을 원자적으로 반환한다', async () => {
+    it('OUTPUT INSERTED.attempts로 증가된 값을 원자적으로 반환하고, maxAttempts를 바인딩해 상한을 건다', async () => {
         const { pool, log } = makeFakePool([{ recordset: [{ attempts: 3 }] }]);
         vi.mocked(getPool).mockResolvedValue(pool);
 
-        expect(await incrementAttempts(7)).toBe(3);
+        expect(await incrementAttempts(7, 5)).toBe(3);
         expect(log[0].sql).toContain('OUTPUT INSERTED.attempts');
         expect(log[0].sql).toContain('verified_at IS NULL');
-        expect(log[0].inputs).toEqual([{ name: 'id', type: sql.Int, value: 7 }]);
+        expect(log[0].sql).toContain('attempts < @maxAttempts'); // TINYINT 오버플로 방지(요구사항 2)
+        expect(log[0].inputs).toEqual([
+            { name: 'id', type: sql.Int, value: 7 },
+            { name: 'maxAttempts', type: sql.Int, value: 5 },
+        ]);
     });
 
     it('이미 사용됐거나 존재하지 않는 id면 null을 반환한다(비교 자체를 막아야 함)', async () => {
         const { pool } = makeFakePool([{ recordset: [] }]);
         vi.mocked(getPool).mockResolvedValue(pool);
 
-        expect(await incrementAttempts(7)).toBeNull();
+        expect(await incrementAttempts(7, 5)).toBeNull();
+    });
+
+    it('이미 상한(attempts >= maxAttempts)에 도달한 행은 WHERE에 걸려 더 증가시키지 않고 null을 반환한다', async () => {
+        // 실제 상한 판정은 DB의 WHERE attempts < @maxAttempts가 수행한다(페이크 풀은 쿼리를 해석하지 않으므로
+        // "조건 불일치 → 빈 recordset" 결과만 흉내낸다) — 호출부는 이 경우도 null로 똑같이 받아 통일된 거부로 처리한다.
+        const { pool } = makeFakePool([{ recordset: [] }]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+
+        expect(await incrementAttempts(7, 5)).toBeNull();
     });
 });
 

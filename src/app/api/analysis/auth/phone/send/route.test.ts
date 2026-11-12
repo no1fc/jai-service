@@ -108,6 +108,21 @@ describe('POST /api/analysis/auth/phone/send', () => {
         expect(res.status).toBe(500);
     });
 
+    it('삽입 쿼리에서 데드락(오류 1205)이 나면 429 "잠시 후 다시 시도해 주세요."로 응답하고 발송하지 않는다', async () => {
+        vi.mocked(insertVerificationIfAllowed).mockRejectedValue(Object.assign(new Error('Transaction (Process ID 52) was deadlocked'), { number: 1205 }));
+        const res = await POST(req(VALID_BODY));
+        expect(res.status).toBe(429);
+        const json = await res.json();
+        expect(json.error).toBe('잠시 후 다시 시도해 주세요.');
+        expect(sendSms).not.toHaveBeenCalled();
+    });
+
+    it('삽입 쿼리에서 데드락이 아닌 다른 DB 오류면 500으로 처리한다', async () => {
+        vi.mocked(insertVerificationIfAllowed).mockRejectedValue(new Error('커넥션 오류'));
+        const res = await POST(req(VALID_BODY));
+        expect(res.status).toBe(500);
+    });
+
     it('번호 가입 여부를 노출하지 않는다 — 신규/기존 번호 모두 동일한 응답 형태', async () => {
         const res = await POST(req(VALID_BODY));
         const json = await res.json();

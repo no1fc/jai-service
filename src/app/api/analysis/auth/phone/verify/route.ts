@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
-import { maskPhone, phoneSchema, verifyCode } from '@/lib/analysis/auth/phone';
+import { MAX_ATTEMPTS, maskPhone, phoneSchema, verifyCode } from '@/lib/analysis/auth/phone';
 import { incrementAttempts, latestVerification, markVerified } from '@/lib/analysis/auth/phone-store';
 import { upsertUser } from '@/lib/analysis/users';
 import { issueUserSession } from '@/lib/analysis/auth/user-session';
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         // 비교 전에 시도 횟수를 원자적으로 증가시키고, DB가 반환한 실제 값만을 판정에 쓴다.
         // 로컬에서 "row.attempts + 1"을 계산해 쓰면 동시 요청이 모두 같은 낮은 값을 보게 되어
         // 사실상 무제한 코드 추측이 가능해진다 — 그래서 반드시 store의 반환값을 써야 한다.
-        const attempts = await incrementAttempts(row.id);
+        const attempts = await incrementAttempts(row.id, MAX_ATTEMPTS);
         if (attempts === null) return rejectVerify(phone, 'already_verified_or_missing');
 
         const result = verifyCode({ ...row, attempts }, phone, code, new Date());
