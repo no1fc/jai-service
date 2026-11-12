@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { SIDO_LIST } from '@/lib/regions';
 
 // ==========================================
 // Branches
@@ -75,10 +76,11 @@ export const updateSettingSchema = z.object({
 // ==========================================
 
 export const chatRequestSchema = z.object({
+    // messages는 전달받지만 서버에서는 사용하지 않음(클라이언트 호환용). 크기만 제한한다.
     messages: z.array(z.object({
         role: z.enum(['user', 'model']),
-        content: z.string(),
-    })).optional().default([]),
+        content: z.string().max(1000),
+    })).max(60).optional().default([]),
     phase: z.enum(['intro', 'info', 'questioning', 'analyzing', 'location', 'result', 'ended']),
     userAnswers: z.record(z.string().max(50), z.string().max(100)).optional().default({}),
     currentStep: z.number().int().min(0).optional().default(0),
@@ -97,7 +99,7 @@ export const leadSchema = z.object({
     phone: z.string().trim()
         .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, '휴대폰 번호 형식이 올바르지 않습니다.')
         .transform(v => v.replace(/-/g, '')),
-    region: z.string().trim().min(1, '지역을 선택해주세요.').max(50),
+    region: z.enum(SIDO_LIST, { message: '지역을 올바르게 선택해주세요.' }),
     desiredJob: z.string().trim().max(100).optional().default(''),
     source: z.enum(LEAD_SOURCES),
     payload: z.record(z.string(), z.unknown()).default({})

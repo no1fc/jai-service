@@ -12,6 +12,7 @@ import { judgeEligibility } from '@/lib/eligibility/judge';
 import {
     buildExplanationPrompt, fallbackExplanation, toDiagnosisResult, type Explanation,
 } from '@/lib/eligibility/explain';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic'; // API 자동 캐싱 방지 처리 및 DB 상시 조회
@@ -85,6 +86,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // ==================== ANALYZING 단계 ====================
         // 수집된 답변으로 규칙 엔진 판정 수행
         if (phase === 'analyzing') {
+            // Gemini를 호출하는 유일한 단계이므로 이 단계에서만 IP 기반 요청 제한을 건다.
+            const limit = checkRateLimit(`chat:${getClientIp(request)}`, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+            if (!limit.allowed) {
+                return NextResponse.json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' }, { status: 429 });
+            }
+
             const parsedAnswers = parseDiagnosisAnswers(userAnswers);
             if (!parsedAnswers.ok) {
                 logger.warn('진단 응답 검증 실패:', parsedAnswers.error);
