@@ -22,7 +22,7 @@ export default function KakaoButton({ kakaoEnabled, agreed, returnTo }: KakaoBut
         return <button type="button" disabled style={KAKAO_BRAND_STYLE} className={primaryButton}>카카오로 로그인</button>;
     }
 
-    const kakaoHref = `/api/analysis/auth/kakao?consent=1&returnTo=${encodeURIComponent(returnTo)}`;
+    const kakaoHref = `/api/analysis/auth/kakao?consent=1&age=1&returnTo=${encodeURIComponent(returnTo)}`;
     return (
         <a href={kakaoHref} style={KAKAO_BRAND_STYLE} className={`${primaryButton} flex items-center justify-center`}>
             카카오로 로그인

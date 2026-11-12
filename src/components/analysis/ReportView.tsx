@@ -26,11 +26,10 @@ function daysAgoLabel(createdAt: string): string {
     return days <= 0 ? '오늘 생성' : `${days}일 전 생성`;
 }
 
-/** 고용24가 반영되지 않은 사유(범위가 해외 포함이거나, 켰는데도 수치가 없는 경우). */
+/** 고용24가 반영되지 않았음을 중립적으로 알린다(구체적 사유는 밝히지 않음). */
 function work24UnavailableReason(report: PublicReport): string | null {
     if (report.meta.dataUsed.includes('work24')) return null;
-    if (report.scope !== 'kr') return '해외 포함 분석은 고용24 데이터를 반영하지 않습니다.';
-    return '고용24 채용 데이터가 부족해 반영되지 않았습니다.';
+    return '이 리포트에는 고용24 채용 데이터가 반영되지 않았습니다.';
 }
 
 function Badge({ children }: { children: ReactNode }) {
@@ -203,8 +202,8 @@ export default function ReportView({ report, pdfHref }: ReportViewProps) {
             {meta.sources.length > 0 && (
                 <Section title="출처">
                     <ul className="space-y-1 text-sm">
-                        {meta.sources.map(s => (
-                            <li key={s.uri}><a href={s.uri} target="_blank" rel="noopener noreferrer" className="text-accent underline break-all">{s.title}</a></li>
+                        {meta.sources.map((s, i) => (
+                            <li key={`${s.uri}-${i}`}><a href={s.uri} target="_blank" rel="noopener noreferrer" className="text-accent underline break-all">{s.title}</a></li>
                         ))}
                     </ul>
                 </Section>

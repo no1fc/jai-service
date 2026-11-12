@@ -113,6 +113,30 @@ describe('generateAnalysis', () => {
         expect(!r.ok && r.error).toContain('저장');
         expect(!r.ok && r.error).not.toBe('AI 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     });
+    it('조사 출처와 고용24 샘플 URL이 같으면 meta.sources에서 중복을 제거한다(먼저 나온 것 유지)', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(fetchWork24Summary).mockResolvedValue({
+            total: 1, sampled: 1, topRegions: [], salaryBands: [], employmentTypes: [],
+            samples: [{ title: 'dup', company: 'c', region: 'r', sal: 's', closeDt: 'd', url: 'https://a' }],
+            fetchedAt: '2026-11-12',
+        });
+        vi.mocked(generateResponse).mockReset()
+            .mockResolvedValueOnce({ ...researchResult, sources: [{ title: '조사 출처', uri: 'https://a' }] })
+            .mockResolvedValue(reportResult);
+        let savedMeta: unknown;
+        vi.mocked(reports.insertReport).mockImplementation(async (input) => { savedMeta = input.meta; return stored; });
+        const r = await generateAnalysis(req, anon, '1.1.1.1');
+        expect(r.ok).toBe(true);
+        const uris = (savedMeta as { sources: Array<{ uri: string }> }).sources.map(s => s.uri);
+        expect(uris).toEqual(['https://a']);
+    });
+    it('보관함 저장(addToLibrary)이 실패해도 로그만 남기고 리포트는 정상 반환한다(탈퇴한 사용자의 남은 쿠키 등)', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(fetchWork24Summary).mockResolvedValue(null);
+        vi.mocked(reports.addToLibrary).mockRejectedValue(new Error('FK violation'));
+        const r = await generateAnalysis(req, { kind: 'user', userId: 1 }, '1.1.1.1');
+        expect(r.ok).toBe(true);
+    });
     it('force는 관리자만 캐시를 건너뛴다', async () => {
         vi.mocked(reports.findFreshReport).mockResolvedValue(stored);
         await generateAnalysis(req, { kind: 'admin', username: 'a' }, '1.1.1.1', { force: true });

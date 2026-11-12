@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         if (searchParams.get('consent') !== '1') return apiError('개인정보 수집·이용 동의가 필요합니다.', 400);
+        if (searchParams.get('age') !== '1') return apiError('만 14세 이상 확인이 필요합니다.', 400);
 
         const state = crypto.randomUUID();
         const returnTo = safeReturnTo(searchParams.get('returnTo'));

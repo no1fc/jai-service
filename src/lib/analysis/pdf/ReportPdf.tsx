@@ -164,8 +164,8 @@ function SourcesList({ sources }: { sources: Array<{ title: string; uri: string 
     if (sources.length === 0) return null;
     return (
         <Section title="출처">
-            {sources.slice(0, SOURCES_MAX).map(s => (
-                <Link key={s.uri} src={s.uri} style={styles.sourceItem}>{s.title} ({s.uri})</Link>
+            {sources.slice(0, SOURCES_MAX).map((s, i) => (
+                <Link key={`${s.uri}-${i}`} src={s.uri} style={styles.sourceItem}>{s.title} ({s.uri})</Link>
             ))}
         </Section>
     );

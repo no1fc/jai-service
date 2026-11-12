@@ -19,6 +19,16 @@ const fail = (status: Fail['status'], error: string, retryAfterSec?: number): Fa
 type Research = { text: string; sources: ReportMeta['sources']; searchEntryPoint: string | null };
 type ReportResult = { ok: true; content: ReportContent; sources: ReportMeta['sources']; searchEntryPoint: string | null; modelName: string; inputTokens: number; outputTokens: number };
 
+/** uri 기준 중복 제거(먼저 나온 항목 유지) — 조사 출처와 고용24 샘플 URL이 겹칠 수 있어 적용. */
+function dedupeByUri<T extends { uri: string }>(items: T[]): T[] {
+    const seen = new Set<string>();
+    return items.filter(item => {
+        if (seen.has(item.uri)) return false;
+        seen.add(item.uri);
+        return true;
+    });
+}
+
 export async function generateAnalysis(req: AnalysisRequest, actor: Actor, ip: string, opts: { force?: boolean } = {}): Promise<Ok | Fail> {
     const cacheKey = buildCacheKey(req);
     try {
@@ -37,7 +47,8 @@ export async function generateAnalysis(req: AnalysisRequest, actor: Actor, ip: s
         const meta: ReportMeta = {
             // 'search'는 조사 호출 출처가 실제로 1건 이상일 때만 표시(경쟁사 ON이어도 조사가 저하되면 표시하지 않음).
             dataUsed: [...(work24 ? ['work24' as const] : []), ...(ai.sources.length > 0 ? ['search' as const] : [])],
-            work24, sources: [...ai.sources, ...(work24?.samples.map(s => ({ title: `[고용24] ${s.title} · ${s.company}`, uri: s.url })) ?? [])],
+            work24,
+            sources: dedupeByUri([...ai.sources, ...(work24?.samples.map(s => ({ title: `[고용24] ${s.title} · ${s.company}`, uri: s.url })) ?? [])]),
             searchEntryPoint: ai.searchEntryPoint, modelName: ai.modelName,
         };
         const row = await saveReport(req, cacheKey, ai, meta);
@@ -69,7 +80,15 @@ async function saveReport(req: AnalysisRequest, cacheKey: string, ai: ReportResu
 
 async function finish(row: StoredReport, actor: Actor, cached: boolean): Promise<Ok> {
     await recordRequest(row.id, actor, cached);
-    if (actor.kind === 'user') await addToLibrary(actor.userId, row.id);
+    // 보관함 저장 실패(예: 탈퇴한 사용자의 남은 쿠키 → FK 위반)는 리포트 생성 자체와 무관하므로
+    // 로그만 남기고 "AI 연결 실패"로 보고하지 않는다 — recordRequest와 같은 방식.
+    if (actor.kind === 'user') {
+        try {
+            await addToLibrary(actor.userId, row.id);
+        } catch (error) {
+            logger.error('[분석] 보관함 저장 실패:', error);
+        }
+    }
     return { ok: true, report: toPublicReport(row), cached };
 }
 
