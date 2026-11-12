@@ -17,6 +17,19 @@ export default function PrivacyPage() {
 
                 <div className="space-y-12 text-text-secondary leading-relaxed font-medium">
                     <section>
+                        <h2 className="text-2xl font-bold text-text mb-6">상담 신청 시 수집하는 개인정보</h2>
+                        <p className="mb-4">국민취업지원제도 상담 연락 및 맞춤 안내를 위해 상담 신청 시 아래 항목을 수집합니다.</p>
+                        <ul className="list-disc pl-5 space-y-2">
+                            <li>이름, 휴대폰 번호, 거주 지역, 희망 직무(선택)</li>
+                            <li>진단·상담 내용: 모의진단 응답·결과, 자기소개서·역량 진단 입력·결과, Q&amp;A 질문</li>
+                        </ul>
+                        <p className="mt-4">수집 목적: 국민취업지원제도 상담 연락 및 맞춤 안내</p>
+                        <p className="mt-4">보유 기간: 신청일로부터 1년 후 지체 없이 파기</p>
+                        <p className="mt-4">동의 거부 권리: 위 개인정보 수집·이용에 대한 동의를 거부할 수 있으며, 거부 시 상담 신청이 제한됩니다.</p>
+                        <p className="mt-4">AI 처리 안내: 상담사 리포트 생성 시 이름·연락처를 제외한 진단 데이터가 Google Gemini API로 전송될 수 있습니다.</p>
+                    </section>
+
+                    <section>
                         <h2 className="text-2xl font-bold text-text mb-6">제1조 (수집하는 개인정보 항목)</h2>
                         <p className="mb-4">본 서비스는 국민취업지원제도 정보 안내를 위한 챗봇으로, 회원가입 절차 없이 누구나 이용할 수 있습니다.</p>
                         <ul className="list-disc pl-5 space-y-2">
