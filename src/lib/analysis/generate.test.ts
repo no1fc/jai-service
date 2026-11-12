@@ -104,6 +104,15 @@ describe('generateAnalysis', () => {
         const r = await generateAnalysis(req, anon, '1.1.1.1');
         expect(!r.ok && r.status).toBe(503);
     });
+    it('AI 호출은 성공했지만 리포트 저장(DB)에 실패하면 503이고 AI 연결 실패와 다른 문구를 반환한다', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(fetchWork24Summary).mockResolvedValue(null);
+        vi.mocked(reports.insertReport).mockRejectedValue(new Error('connection lost'));
+        const r = await generateAnalysis(req, anon, '1.1.1.1');
+        expect(!r.ok && r.status).toBe(503);
+        expect(!r.ok && r.error).toContain('저장');
+        expect(!r.ok && r.error).not.toBe('AI 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    });
     it('force는 관리자만 캐시를 건너뛴다', async () => {
         vi.mocked(reports.findFreshReport).mockResolvedValue(stored);
         await generateAnalysis(req, { kind: 'admin', username: 'a' }, '1.1.1.1', { force: true });

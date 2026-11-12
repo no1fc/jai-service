@@ -40,7 +40,8 @@ export async function generateAnalysis(req: AnalysisRequest, actor: Actor, ip: s
             work24, sources: [...ai.sources, ...(work24?.samples.map(s => ({ title: `[고용24] ${s.title} · ${s.company}`, uri: s.url })) ?? [])],
             searchEntryPoint: ai.searchEntryPoint, modelName: ai.modelName,
         };
-        const row = await insertReport({ req, keywordNorm: normalizeKeyword(req.keyword), cacheKey, content: ai.content, meta, modelName: ai.modelName, inputTokens: ai.inputTokens, outputTokens: ai.outputTokens, ttlDays: REPORT_CACHE_TTL_DAYS });
+        const row = await saveReport(req, cacheKey, ai, meta);
+        if ('ok' in row) return row;
         return finish(row, actor, false);
     } catch (error) {
         if (isMissingTableError(error)) {
@@ -49,6 +50,20 @@ export async function generateAnalysis(req: AnalysisRequest, actor: Actor, ip: s
         }
         logger.error('[분석] 생성 실패:', error);
         return fail(503, 'AI 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    }
+}
+
+/** AI 호출이 끝난 리포트를 저장한다. 저장(DB) 실패는 AI 연결 실패와 구분되는 메시지의 503으로 반환한다. */
+async function saveReport(req: AnalysisRequest, cacheKey: string, ai: ReportResult, meta: ReportMeta): Promise<StoredReport | Fail> {
+    try {
+        return await insertReport({ req, keywordNorm: normalizeKeyword(req.keyword), cacheKey, content: ai.content, meta, modelName: ai.modelName, inputTokens: ai.inputTokens, outputTokens: ai.outputTokens, ttlDays: REPORT_CACHE_TTL_DAYS });
+    } catch (error) {
+        if (isMissingTableError(error)) {
+            logger.error('[분석] 테이블 없음 — scripts/create-analysis-schema.sql 실행 필요:', error);
+            return fail(503, '분석 서비스 준비 중입니다. 잠시 후 다시 시도해 주세요.');
+        }
+        logger.error('[분석] 리포트 저장 실패:', error);
+        return fail(503, '리포트 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
 }
 

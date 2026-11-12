@@ -53,11 +53,20 @@ export interface ReportListItem {
 
 export interface DashboardTopRow { type: string; keyword: string; cnt: number }
 
+/** 대시보드 "최근 분석" 1건 — 설계서 3.1: 유형·키워드·요청자 구분·요청 시각(IP는 저장·반환하지 않음). */
+export interface DashboardRecentItem {
+    publicId: string;
+    type: AnalysisRequest['type'];
+    keyword: string;
+    actor: Actor['kind'];
+    requestedAt: Date;
+}
+
 export interface DashboardStats {
     today: number;
     last7d: number;
     cacheHitRate: number;
-    recent: ReportListItem[];
+    recent: DashboardRecentItem[];
     topJobs: DashboardTopRow[];
     topIndustries: DashboardTopRow[];
 }
@@ -86,9 +95,10 @@ export const DASHBOARD_TOP_SQL = `SELECT TOP 10 r.type, r.keyword_norm AS keywor
 const DASHBOARD_COUNT_SQL = (windowClause: string) => `SELECT COUNT(*) AS c FROM analysis_requests WHERE cache_hit = 0 AND created_at > ${windowClause}`;
 const DASHBOARD_HIT_RATE_SQL = `SELECT COUNT(*) AS total, SUM(CASE WHEN cache_hit = 1 THEN 1 ELSE 0 END) AS hits
     FROM analysis_requests WHERE created_at > DATEADD(day, -30, SYSUTCDATETIME())`;
-const DASHBOARD_RECENT_SQL = `SELECT TOP 20 r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at,
-    (SELECT COUNT(*) FROM analysis_requests q WHERE q.report_id = r.id) AS request_count
-    FROM analysis_reports r ORDER BY r.created_at DESC`;
+// 최근 분석은 "요청" 기준(캐시 적중 포함)으로 집계한다 — 설계서 3.1절. IP는 analysis_requests에 저장하지 않으므로 선택하지 않는다.
+const DASHBOARD_RECENT_SQL = `SELECT TOP 20 r.public_id, r.type, r.keyword, q.actor, q.created_at
+    FROM analysis_requests q JOIN analysis_reports r ON r.id = q.report_id
+    ORDER BY q.created_at DESC`;
 
 // ponytail: 목록은 TOP 500 고정, 검색은 LIKE. 리포트가 수천 건을 넘으면 페이지네이션 추가
 const LIST_SQL = (where: string) => `SELECT TOP 500 r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at,
@@ -101,7 +111,7 @@ export function isMissingTableError(err: unknown): boolean {
 
 export async function findFreshReport(cacheKey: string): Promise<StoredReport | null> {
     const pool = await getPool();
-    const r = await pool.request().input('cacheKey', sql.NVarChar(64), cacheKey).query(FRESH_REPORT_SQL);
+    const r = await pool.request().input('cacheKey', sql.VarChar(64), cacheKey).query(FRESH_REPORT_SQL);
     return (r.recordset[0] as StoredReport | undefined) ?? null;
 }
 
@@ -114,7 +124,7 @@ export async function insertReport(input: InsertReportInput): Promise<StoredRepo
         .input('scope', sql.VarChar(10), input.req.scope)
         .input('comp', input.req.includeCompetitors)
         .input('trends', input.req.includeTrends)
-        .input('cacheKey', sql.NVarChar(64), input.cacheKey)
+        .input('cacheKey', sql.VarChar(64), input.cacheKey)
         .input('content', sql.NVarChar(sql.MAX), JSON.stringify(input.content))
         .input('meta', sql.NVarChar(sql.MAX), JSON.stringify(input.meta))
         .input('model', sql.NVarChar(100), input.modelName)
@@ -183,7 +193,12 @@ export async function listLibrary(userId: number): Promise<ReportListItem[]> {
     return r.recordset as ReportListItem[];
 }
 
+const Q_MAX = 50;
+
 export async function listReports(filter: { type?: AnalysisRequest['type']; q?: string } = {}): Promise<ReportListItem[]> {
+    if (filter.q !== undefined && filter.q.length > Q_MAX) {
+        throw new Error(`검색어는 ${Q_MAX}자 이내로 입력해 주세요.`);
+    }
     const pool = await getPool();
     const request = pool.request();
     const clauses: string[] = [];
@@ -205,6 +220,16 @@ async function dashboardTop(pool: Awaited<ReturnType<typeof getPool>>, type: Ana
     return r.recordset as DashboardTopRow[];
 }
 
+function toRecentItem(row: { public_id: string; type: string; keyword: string; actor: string; created_at: Date }): DashboardRecentItem {
+    return {
+        publicId: row.public_id,
+        type: row.type as AnalysisRequest['type'],
+        keyword: row.keyword,
+        actor: row.actor as Actor['kind'],
+        requestedAt: row.created_at,
+    };
+}
+
 /** 관리자 대시보드 통계 — 오늘/최근 7일 생성 수, 최근 30일 캐시 적중률, 최근 20건, 직무/산업 상위 10개(30일). */
 export async function getDashboard(): Promise<DashboardStats> {
     const pool = await getPool();
@@ -222,7 +247,7 @@ export async function getDashboard(): Promise<DashboardStats> {
         today: today.recordset[0]?.c ?? 0,
         last7d: last7d.recordset[0]?.c ?? 0,
         cacheHitRate: total > 0 ? (hitRow.hits ?? 0) / total : 0,
-        recent: recent.recordset as ReportListItem[],
+        recent: (recent.recordset as Array<{ public_id: string; type: string; keyword: string; actor: string; created_at: Date }>).map(toRecentItem),
         topJobs,
         topIndustries,
     };
