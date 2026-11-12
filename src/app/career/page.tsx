@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Copy } from 'lucide-react';
 import LeadForm from '@/components/lead/LeadForm';
+import CrossBorderNotice from '@/components/privacy/CrossBorderNotice';
 import { COMPETENCIES, type CareerResult, type CompetencyKey } from '@/lib/career/schema';
 
 type Step = 'input' | 'rating' | 'loading' | 'result';
@@ -79,6 +80,7 @@ export default function CareerPage() {
                             placeholder="예: 카페 아르바이트 2년, 엑셀 자격증, 고객 응대에 자신 있음" className={`${field} py-3 mt-1`} />
                         <span className="text-xs text-text-muted">{experience.length}/600</span>
                     </label>
+                    <CrossBorderNotice />
                     <button className={primary} disabled={!desiredJob.trim() || experience.trim().length < 10} onClick={() => setStep('rating')}>
                         다음: 역량 체크
                     </button>

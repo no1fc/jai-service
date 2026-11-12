@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Send } from 'lucide-react';
 import LeadForm from '@/components/lead/LeadForm';
+import CrossBorderNotice from '@/components/privacy/CrossBorderNotice';
 import { MAX_HISTORY_MESSAGES } from '@/lib/qna/prompt';
 
 type Msg = { role: 'user' | 'model'; text: string; suggestDiagnosis?: boolean; isError?: boolean };
@@ -91,7 +92,8 @@ export default function AskPage() {
                 <div ref={endRef} />
             </div>
 
-            <form onSubmit={onSubmit} className="sticky bottom-0 bg-bg pt-3 pb-4 flex gap-2">
+            <div className="pt-2"><CrossBorderNotice /></div>
+            <form onSubmit={onSubmit} className="sticky bottom-0 bg-bg pt-2 pb-4 flex gap-2">
                 <label htmlFor="ask-input" className="sr-only">질문 입력</label>
                 <input id="ask-input" value={input} onChange={e => setInput(e.target.value.slice(0, 500))}
                     placeholder="궁금한 점을 입력하세요" disabled={loading}

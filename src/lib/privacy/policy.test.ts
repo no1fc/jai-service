@@ -52,6 +52,13 @@ describe('parsePolicy', () => {
         expect(h2Count).toBeGreaterThanOrEqual(9);
         expect(hasPlaceholder(DEFAULT_PRIVACY_POLICY)).toBe(true);
     });
+
+    it('DEFAULT_PRIVACY_POLICY는 국외 이전·거부·만 14세·매일 자동 파기 문구를 포함한다', () => {
+        expect(DEFAULT_PRIVACY_POLICY).toContain('국외 이전');
+        expect(DEFAULT_PRIVACY_POLICY).toContain('거부');
+        expect(DEFAULT_PRIVACY_POLICY).toContain('만 14세');
+        expect(DEFAULT_PRIVACY_POLICY).toContain('매일 자동');
+    });
 });
 
 describe('hasPlaceholder', () => {
