@@ -23,6 +23,20 @@ export interface GeminiResponse {
     modelName: string;
 }
 
+// 모델 폴백 경고를 프로세스당 (설정키→대체 모델) 조합마다 한 번만 로그하기 위한 기록.
+const loggedModelFallbacks = new Set<string>();
+
+/**
+ * 다음 API 키로 재시도할지 여부를 판단한다.
+ * 401/403/429/5xx 상태 코드 또는 상태 코드가 없는 네트워크류 오류만 재시도 대상이며,
+ * 400/404처럼 요청 자체가 잘못된 경우는 다른 키로 재시도해도 결과가 같으므로 즉시 실패시킨다.
+ */
+export function isRetryableGeminiError(error: unknown): boolean {
+    const status = error instanceof ApiError ? error.status : undefined;
+    if (status === undefined) return true; // 네트워크 오류 등 상태 코드가 없는 경우
+    return status === 401 || status === 403 || status === 429 || status >= 500;
+}
+
 /**
  * Gemini 모델에 메시지를 전송하고 응답을 받는 함수
  * 키 실패(401/403/429/503 등) 시 다음 등록된 키로 순차 재시도
@@ -62,7 +76,11 @@ export async function generateResponse(
     const stored = await getSetting(settingKey);
     const { id: configuredModel, replaced } = resolveGeminiModel(stored, fallback);
     if (replaced) {
-        logger.warn(`[Gemini] ${settingKey}='${stored ?? ''}' 는 사용할 수 없어 기본값 '${configuredModel}'로 대체되었습니다.`);
+        const fallbackKey = `${settingKey}:${stored ?? ''}->${configuredModel}`;
+        if (!loggedModelFallbacks.has(fallbackKey)) {
+            loggedModelFallbacks.add(fallbackKey);
+            logger.warn(`[Gemini] ${settingKey}='${stored ?? ''}' 는 사용할 수 없어 기본값 '${configuredModel}'로 대체되었습니다.`);
+        }
     }
 
     // 시스템 프롬프트와 사용자 메시지를 하나의 프롬프트로 결합
@@ -107,18 +125,14 @@ export async function generateResponse(
             const status = error instanceof ApiError ? error.status : undefined;
             const message = error instanceof Error ? error.message : String(error);
 
-            // 403 (Forbidden), 401 (Unauthorized), 429 (Too Many Requests), 503 -> 다음 키 시도
-            if (
-                status === 403 || status === 401 || status === 429 || status === 503 ||
-                message.includes('403') || message.includes('leaked') || message.includes('API key not valid')
-            ) {
-                logger.warn(`[Gemini API] Key ${i + 1}/${keys.length} failed (Status: ${status}). error: ${message}. trying next key...`);
-                // 마지막 키가 아니라면 다음 루프로 진행
-                continue;
+            if (!isRetryableGeminiError(error)) {
+                // 400/404 등 요청 자체가 잘못된 경우는 다른 키로 재시도해도 동일하게 실패하므로 즉시 중단한다.
+                logger.error(`[Gemini API] Key ${i + 1} 재시도 불가능한 오류 (Status: ${status}): ${message}`);
+                throw new Error('AI 서비스 연결에 실패했습니다. (모든 API 키 호출 실패)');
             }
 
-            logger.error(`[Gemini API] Key ${i + 1} unexpected error:`, error);
-            // 알 수 없는 에러여도 다음 키가 있으면 시도
+            logger.warn(`[Gemini API] Key ${i + 1}/${keys.length} failed (Status: ${status}). error: ${message}. trying next key...`);
+            // 마지막 키가 아니라면 다음 루프로 진행
             continue;
         }
     }
@@ -140,8 +154,8 @@ export function safeParseJSON<T>(text: string): T | null {
         const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         return JSON.parse(cleaned) as T;
     } catch {
-        // JSON 파싱 실패 시 null 반환
-        logger.error('JSON 파싱 실패:', text);
+        // JSON 파싱 실패 시 null 반환. 로그에는 원문 앞 200자만 남긴다(긴 응답으로 로그가 오염되는 것 방지).
+        logger.error('JSON 파싱 실패:', text.slice(0, 200));
         return null;
     }
 }

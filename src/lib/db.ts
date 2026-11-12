@@ -31,7 +31,8 @@ const mssqlConfig: MssqlConfig = {
 
 // 커넥션 풀 싱글톤
 let poolPromise: Promise<ConnectionPool> | null = null;
-let schemaInitialized = false;
+// 스키마 초기화 Promise를 메모이즈해 동시 요청이 initSchema를 중복 실행하지 않도록 한다.
+let schemaPromise: Promise<void> | null = null;
 
 /**
  * MSSQL 커넥션 풀 반환 (최초 호출 시 연결 + 스키마 초기화)
@@ -42,10 +43,11 @@ export async function getPool(): Promise<ConnectionPool> {
     }
     const pool = await poolPromise;
 
-    if (!schemaInitialized) {
-        await initSchema(pool);
-        schemaInitialized = true;
-    }
+    schemaPromise ??= initSchema(pool).catch((err) => {
+        schemaPromise = null; // 실패 시 다음 호출에서 재시도할 수 있도록 되돌린다.
+        throw err;
+    });
+    await schemaPromise;
 
     return pool;
 }

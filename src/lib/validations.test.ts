@@ -24,4 +24,8 @@ describe('leadSchema', () => {
     it('payload가 20KB를 넘으면 거부한다', () => {
         expect(leadSchema.safeParse({ ...valid, payload: { big: 'x'.repeat(21000) } }).success).toBe(false);
     });
+    it('region은 SIDO_LIST에 있는 값만 허용한다', () => {
+        expect(leadSchema.safeParse({ ...valid, region: '서울' }).success).toBe(false);
+        expect(leadSchema.safeParse({ ...valid, region: '서울특별시' }).success).toBe(true);
+    });
 });
