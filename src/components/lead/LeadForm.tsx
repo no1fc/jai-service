@@ -86,6 +86,7 @@ export default function LeadForm({ source, payload, defaultDesiredJob = '', defa
                 <p><b>수집 항목</b>: 이름, 휴대폰 번호, 거주 지역, 희망 직무, 진단·상담 내용</p>
                 <p><b>이용 목적</b>: 국민취업지원제도 상담 연락 및 안내</p>
                 <p><b>보관 기간</b>: 신청일로부터 1년 후 파기</p>
+                <p>AI 답변·분석 생성을 위해 진단 데이터가 Google(미국)로 국외 이전될 수 있습니다.</p>
                 <p>동의를 거부할 수 있으며, 거부 시 상담 신청이 제한됩니다. <Link href="/privacy" className="underline">개인정보처리방침</Link></p>
             </div>
             <label className="flex items-start gap-2 min-h-[44px]">
