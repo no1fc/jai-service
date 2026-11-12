@@ -31,7 +31,13 @@ export async function DELETE(request: Request) {
     if (!current) return apiError('로그인이 필요합니다.', 401);
 
     try {
-        await deleteUser(current.id);
+        const deleted = await deleteUser(current.id);
+        // deleteUser가 false면 이미 탈퇴됐거나(동시 요청 등) 계정이 없는 상태 — 어느 쪽이든 세션 쿠키는 정리한다.
+        if (!deleted) {
+            const res = apiError('이미 탈퇴했거나 계정을 찾을 수 없습니다.', 404);
+            clearUserSession(res);
+            return res;
+        }
         const res = apiSuccess(null, '탈퇴가 완료되었습니다.');
         clearUserSession(res);
         return res;

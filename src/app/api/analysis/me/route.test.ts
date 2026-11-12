@@ -57,6 +57,16 @@ describe('DELETE /api/analysis/me', () => {
         expect(json).toEqual({ success: true, message: '탈퇴가 완료되었습니다.' });
     });
 
+    it('deleteUser가 false를 반환하면(이미 탈퇴/계정 없음) 404이고 세션 쿠키는 그대로 삭제한다', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({ id: 7 });
+        vi.mocked(deleteUser).mockResolvedValue(false);
+        const res = await DELETE(deleteRequest());
+        expect(res.status).toBe(404);
+        expect(clearUserSession).toHaveBeenCalledWith(res);
+        const json = await res.json();
+        expect(json).toEqual({ success: false, error: '이미 탈퇴했거나 계정을 찾을 수 없습니다.' });
+    });
+
     it('탈퇴 처리 중 예외가 발생하면 500이고 내부 정보를 노출하지 않는다', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue({ id: 7 });
         vi.mocked(deleteUser).mockRejectedValue(new Error('ECONNRESET at mssql connection pool'));
