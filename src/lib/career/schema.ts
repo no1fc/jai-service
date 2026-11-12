@@ -16,7 +16,7 @@ export const COMPETENCIES = [
 
 export type CompetencyKey = typeof COMPETENCIES[number]['key'];
 
-const rating = z.number().int().min(1).max(5);
+const rating = z.number().int().min(1, '역량 점수는 1~5 사이여야 합니다.').max(5, '역량 점수는 1~5 사이여야 합니다.');
 const ratingsShape = Object.fromEntries(COMPETENCIES.map(c => [c.key, rating])) as Record<CompetencyKey, typeof rating>;
 
 export const careerRequestSchema = z.object({

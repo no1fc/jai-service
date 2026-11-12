@@ -54,6 +54,7 @@ export default function CareerPage() {
             await navigator.clipboard.writeText(result.coverLetter);
             setCopied(true);
         } catch {
+            setCopied(false);
             setError('복사에 실패했습니다. 직접 선택해 복사해 주세요.');
         }
     }
