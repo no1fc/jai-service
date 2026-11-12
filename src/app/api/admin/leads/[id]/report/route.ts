@@ -2,6 +2,8 @@ import { type NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { buildCounselorReportPrompt, counselorReportSchema } from '@/lib/report/prompt';
 import { logger } from '@/lib/logger';
+import { getClientIp } from '@/lib/rate-limit';
+import { logAdminAccess } from '@/lib/access-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +19,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         const { getLeadById, saveLeadReport } = await import('@/lib/leads');
         const lead = await getLeadById(id);
         if (!lead) return apiError('신청 건을 찾을 수 없습니다.', 404);
+
+        await logAdminAccess({ adminUsername: auth.id, action: 'lead.report', targetType: 'lead', targetId: id, ip: getClientIp(req) });
 
         const refresh = req.nextUrl.searchParams.get('refresh') === '1';
         if (lead.report && !refresh) {

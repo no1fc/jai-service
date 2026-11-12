@@ -75,4 +75,19 @@ BEGIN
     );
     CREATE INDEX IX_leads_created_at ON leads (created_at DESC);
 END;
+
+-- 6. 관리자 개인정보 접속기록 테이블 (개인정보 보호법 제29조, 안전성 확보조치 기준)
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'admin_access_logs')
+BEGIN
+    CREATE TABLE admin_access_logs (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        admin_username NVARCHAR(100) NOT NULL,
+        action VARCHAR(30) NOT NULL,
+        target_type VARCHAR(30) NOT NULL,
+        target_id INT NULL,
+        ip VARCHAR(64) NULL,
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_admin_access_logs_created_at ON admin_access_logs (created_at DESC);
+END;
 GO
