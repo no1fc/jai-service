@@ -21,6 +21,8 @@ export interface GeminiResponse {
         totalTokenCount: number;
     } | null;
     modelName: string;
+    sources: Array<{ title: string; uri: string }>;
+    searchEntryPoint: string | null;
 }
 
 // 모델 폴백 경고를 프로세스당 (설정키→대체 모델) 조합마다 한 번만 로그하기 위한 기록.
@@ -37,18 +39,27 @@ export function isRetryableGeminiError(error: unknown): boolean {
     return status === 401 || status === 403 || status === 429 || status >= 500;
 }
 
+/** 그라운딩 메타데이터에서 출처와 검색 제안 HTML을 뽑는다(없으면 빈 값). */
+export function extractGrounding(candidate: { groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>; searchEntryPoint?: { renderedContent?: string } } } | undefined) {
+    const chunks = candidate?.groundingMetadata?.groundingChunks ?? [];
+    const sources = chunks.flatMap(c => c.web?.uri ? [{ uri: c.web.uri, title: c.web.title || c.web.uri }] : []);
+    return { sources, searchEntryPoint: candidate?.groundingMetadata?.searchEntryPoint?.renderedContent ?? null };
+}
+
 /**
  * Gemini 모델에 메시지를 전송하고 응답을 받는 함수
  * 키 실패(401/403/429/503 등) 시 다음 등록된 키로 순차 재시도
  * @param systemPrompt - AI의 역할과 제약을 정의하는 시스템 프롬프트
  * @param userMessage - 사용자 메시지 또는 분석 요청
  * @param useAnalysisModel - true이면 분석용 모델(gemini_analysis_model_name) 사용, 기본은 일반 챗 모델(gemini_model_name)
- * @returns 텍스트 응답, 토큰 사용량, 모델 이름이 포함된 객체
+ * @param options - googleSearch: true면 Google 검색 그라운딩 도구를 활성화
+ * @returns 텍스트 응답, 토큰 사용량, 모델 이름, 그라운딩 출처가 포함된 객체
  */
 export async function generateResponse(
     systemPrompt: string,
     userMessage: string,
-    useAnalysisModel: boolean = false
+    useAnalysisModel: boolean = false,
+    options: { googleSearch?: boolean } = {}
 ): Promise<GeminiResponse> {
     const keysRaw = await getSetting('gemini_api_keys');
     let keys: string[] = [];
@@ -103,6 +114,7 @@ export async function generateResponse(
                     maxOutputTokens,
                     responseMimeType: 'application/json',
                     thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+                    ...(options.googleSearch && { tools: [{ googleSearch: {} }] }),
                 },
             });
 
@@ -118,6 +130,7 @@ export async function generateResponse(
                     totalTokenCount: usage.totalTokenCount ?? 0,
                 } : null,
                 modelName: configuredModel,
+                ...extractGrounding(response.candidates?.[0]),
             };
 
         } catch (error: unknown) {

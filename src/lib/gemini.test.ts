@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '@google/genai';
-import { isRetryableGeminiError, safeParseJSON } from './gemini';
+import { extractGrounding, isRetryableGeminiError, safeParseJSON } from './gemini';
 
 function apiErrorWithStatus(status: number): ApiError {
     // ApiError 생성자는 ApiErrorInfo 형태를 받는다.
@@ -29,5 +29,15 @@ describe('safeParseJSON', () => {
     });
     it('파싱 실패 시 null을 반환한다', () => {
         expect(safeParseJSON('not json')).toBeNull();
+    });
+});
+
+describe('extractGrounding', () => {
+    it('groundingChunks를 sources로, searchEntryPoint를 문자열로 뽑는다', () => {
+        const c = { groundingMetadata: { groundingChunks: [{ web: { uri: 'https://a', title: 'A' } }, { web: { uri: 'https://b' } }], searchEntryPoint: { renderedContent: '<div>x</div>' } } };
+        expect(extractGrounding(c)).toEqual({ sources: [{ uri: 'https://a', title: 'A' }, { uri: 'https://b', title: 'https://b' }], searchEntryPoint: '<div>x</div>' });
+    });
+    it('메타데이터가 없으면 빈 값', () => {
+        expect(extractGrounding(undefined)).toEqual({ sources: [], searchEntryPoint: null });
     });
 });
