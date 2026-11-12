@@ -109,10 +109,35 @@ function ApiGroup({ title, description, settingKey, icon, keys, onAdd, onDelete 
  */
 function modelOptionLabel(id: string): string {
     const info = findGeminiModel(id);
-    if (!info) return `${id} (레거시)`;
+    if (!info) return `${id} (지원 종료)`;
     if (info.status === 'preview') return `${info.label} (미리보기)`;
     if (info.status === 'deprecated') return `${info.label} (종료 예정)`;
     return info.label;
+}
+
+/**
+ * 저장된 모델이 종료 예정이거나 카탈로그에 없을 때 경고를 보여준다.
+ * 카탈로그에 없는 모델은 서버(resolveGeminiModel)가 기본 모델로 대체해 호출한다.
+ */
+function ModelWarning({ id, fallback }: { id: string; fallback: string }) {
+    const info = findGeminiModel(id);
+    if (id && !info) {
+        return (
+            <p className="text-xs text-[var(--color-danger)] flex items-center gap-1 mt-1">
+                <AlertTriangle size={14} />
+                지원이 종료된 모델입니다. 현재는 기본 모델({fallback})로 응답합니다. 다른 모델을 선택해 저장하세요.
+            </p>
+        );
+    }
+    if (info?.status === 'deprecated') {
+        return (
+            <p className="text-xs text-[var(--color-danger)] flex items-center gap-1 mt-1">
+                <AlertTriangle size={14} />
+                이 모델은 2026-12-01 종료 예정입니다. 다른 모델로 변경하세요.
+            </p>
+        );
+    }
+    return null;
 }
 
 export default function ApiKeysSettingsPage() {
@@ -266,12 +291,7 @@ export default function ApiKeysSettingsPage() {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
                                 <p className="text-sm font-medium text-[var(--color-text)]">일반 응답 모델 (Q&A·모의진단 설명)</p>
-                                {findGeminiModel(geminiModel)?.status === 'deprecated' && (
-                                    <p className="text-xs text-[var(--color-danger)] flex items-center gap-1 mt-1">
-                                        <AlertTriangle size={14} />
-                                        이 모델은 2026-12-01 종료 예정입니다. 다른 모델로 변경하세요.
-                                    </p>
-                                )}
+                                <ModelWarning id={geminiModel} fallback={DEFAULT_CHAT_MODEL} />
                             </div>
                             <div className="flex items-center">
                                 {savingModelKey === 'gemini_model_name' && <span className="text-sm text-[var(--color-accent)] mr-3 flex items-center"><Loader2 className="w-4 h-4 animate-spin mr-1" /> 저장 중...</span>}
@@ -296,12 +316,7 @@ export default function ApiKeysSettingsPage() {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
                                 <p className="text-sm font-medium text-[var(--color-text)]">분석 모델 (자기소개서·상담사 리포트)</p>
-                                {findGeminiModel(geminiAnalysisModel)?.status === 'deprecated' && (
-                                    <p className="text-xs text-[var(--color-danger)] flex items-center gap-1 mt-1">
-                                        <AlertTriangle size={14} />
-                                        이 모델은 2026-12-01 종료 예정입니다. 다른 모델로 변경하세요.
-                                    </p>
-                                )}
+                                <ModelWarning id={geminiAnalysisModel} fallback={DEFAULT_ANALYSIS_MODEL} />
                             </div>
                             <div className="flex items-center">
                                 {savingModelKey === 'gemini_analysis_model_name' && <span className="text-sm text-[var(--color-accent)] mr-3 flex items-center"><Loader2 className="w-4 h-4 animate-spin mr-1" /> 저장 중...</span>}
