@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { KeyRound, Loader2, Save, Trash2, Plus, Cpu, Map as MapIcon, Calculator, AlertTriangle } from 'lucide-react';
+import { KeyRound, Loader2, Save, Trash2, Plus, Cpu, Map as MapIcon, Calculator, AlertTriangle, Plug } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { GEMINI_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_ANALYSIS_MODEL, findGeminiModel } from '@/lib/gemini-models';
 
@@ -103,6 +103,62 @@ function ApiGroup({ title, description, settingKey, icon, keys, onAdd, onDelete 
     );
 }
 
+interface SecretFieldProps {
+    label: string;
+    settingKey: string;
+    maskedValue: string;
+    onSave: (key: string, value: string) => Promise<void>;
+    /** false면 식별자/URL(마스킹 대상 아님)이라 일반 text 입력으로 보여준다. 기본값 true(비밀값). */
+    isSecret?: boolean;
+}
+
+/**
+ * "외부 연동" 단일 값 비밀값 입력 — 배열형 ApiGroup과 달리 키 하나당 값 하나만 저장한다.
+ * 비밀값(isSecret)은 입력창을 type="password" + autoComplete="off"로 가려 화면 노출·자동완성 저장을 막는다.
+ */
+function SecretField({ label, settingKey, maskedValue, onSave, isSecret = true }: SecretFieldProps) {
+    const [value, setValue] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const inputId = `secret-${settingKey}`;
+
+    const handleSave = async () => {
+        if (!value.trim()) return;
+        setIsSaving(true);
+        await onSave(settingKey, value.trim());
+        setValue('');
+        setIsSaving(false);
+    };
+
+    return (
+        <div className="flex items-center justify-between gap-3 py-3 flex-wrap">
+            <div>
+                <label htmlFor={inputId} className="text-sm font-medium text-[var(--color-text)]">{label}</label>
+                <p><code className="text-xs text-[var(--color-text-muted)]">{maskedValue || '저장된 값 없음'}</code></p>
+            </div>
+            <div className="flex items-center gap-2">
+                <input
+                    id={inputId}
+                    type={isSecret ? 'password' : 'text'}
+                    autoComplete="off"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
+                    placeholder="새 값 입력(저장 시 이전 값 덮어씀)"
+                    className="h-11 px-3 border border-[var(--color-border)] rounded-[4px] text-sm bg-[var(--color-bg-elevated)] text-[var(--color-text)]"
+                />
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaving || !value.trim()}
+                    className="h-11 text-sm px-4 rounded-[4px] bg-[var(--color-accent)] text-white disabled:opacity-50"
+                >
+                    저장
+                </button>
+            </div>
+        </div>
+    );
+}
+
 /**
  * 모델 선택 옵션 라벨: preview는 "(미리보기)", deprecated는 "(종료 예정)" 표시를 붙인다.
  * @param id - 모델 id
@@ -149,6 +205,15 @@ export default function ApiKeysSettingsPage() {
     const [savingModelKey, setSavingModelKey] = useState<string | null>(null);
     const [inputTokens, setInputTokens] = useState<number>(1);
     const [outputTokens, setOutputTokens] = useState<number>(1);
+    // "외부 연동" — 배열이 아닌 단일 비밀값(일부는 마스킹된 표시값, 일부는 식별자 원문)
+    const [work24ApiKey, setWork24ApiKey] = useState('');
+    const [kakaoRestApiKey, setKakaoRestApiKey] = useState('');
+    const [kakaoClientSecret, setKakaoClientSecret] = useState('');
+    const [kakaoRedirectUri, setKakaoRedirectUri] = useState('');
+    const [sensAccessKey, setSensAccessKey] = useState('');
+    const [sensSecretKey, setSensSecretKey] = useState('');
+    const [sensServiceId, setSensServiceId] = useState('');
+    const [sensSender, setSensSender] = useState('');
 
     useEffect(() => {
         fetchSettings();
@@ -180,6 +245,16 @@ export default function ApiKeysSettingsPage() {
                 if (data.settings.gemini_analysis_model_name) {
                     setGeminiAnalysisModel(data.settings.gemini_analysis_model_name);
                 }
+
+                // 외부 연동 — 비밀값 5종은 마스킹된 표시값(_masked), 식별자/URL 3종은 원문을 그대로 보여준다.
+                setWork24ApiKey(data.settings.work24_api_key_masked || '');
+                setKakaoRestApiKey(data.settings.kakao_rest_api_key_masked || '');
+                setKakaoClientSecret(data.settings.kakao_client_secret_masked || '');
+                setKakaoRedirectUri(data.settings.kakao_redirect_uri || '');
+                setSensAccessKey(data.settings.sens_access_key_masked || '');
+                setSensSecretKey(data.settings.sens_secret_key_masked || '');
+                setSensServiceId(data.settings.sens_service_id || '');
+                setSensSender(data.settings.sens_sender || '');
             }
         } catch (error) {
             logger.error('Failed to fetch settings:', error);
@@ -233,6 +308,26 @@ export default function ApiKeysSettingsPage() {
             }
         } catch (error) {
             logger.error('Add error:', error);
+            alert('저장 중 네트워크 오류가 발생했습니다.');
+        }
+    };
+
+    /** "외부 연동" 단일 비밀값 저장 — action 없이 PUT { key, value }만 보낸다(기존 route.ts가 이미 지원). */
+    const handleSaveSecret = async (settingKey: string, value: string) => {
+        try {
+            const res = await fetch('/api/admin/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: settingKey, value }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                await fetchSettings();
+            } else {
+                alert(data.error || '저장 중 오류가 발생했습니다.');
+            }
+        } catch (error) {
+            logger.error('Secret save error:', error);
             alert('저장 중 네트워크 오류가 발생했습니다.');
         }
     };
@@ -405,6 +500,29 @@ export default function ApiKeysSettingsPage() {
                     onAdd={handleAddKey}
                     onDelete={handleDeleteKey}
                 />
+
+                <div className="bg-[var(--color-bg-elevated)] rounded-[4px] border border-[var(--color-border)] overflow-hidden mb-8">
+                    <div className="p-6 border-b border-[var(--color-border)]">
+                        <div className="flex items-center gap-2 text-[var(--color-text)] font-bold text-lg mb-1">
+                            <Plug className="text-[var(--color-accent)]" size={22} />
+                            외부 연동
+                        </div>
+                        <p className="text-[var(--color-text-muted)] text-sm">
+                            고용24·카카오 로그인·네이버 클라우드 SENS 연동에 쓰는 값입니다. 새 값을 입력하고 저장하면 이전 값을 덮어쓰며,
+                            비밀값은 조회 시 원문이 노출되지 않습니다.
+                        </p>
+                    </div>
+                    <div className="p-6 divide-y divide-[var(--color-border)]">
+                        <SecretField label="고용24 인증키" settingKey="work24_api_key" maskedValue={work24ApiKey} onSave={handleSaveSecret} />
+                        <SecretField label="카카오 REST API 키" settingKey="kakao_rest_api_key" maskedValue={kakaoRestApiKey} onSave={handleSaveSecret} />
+                        <SecretField label="카카오 Client Secret" settingKey="kakao_client_secret" maskedValue={kakaoClientSecret} onSave={handleSaveSecret} />
+                        <SecretField label="카카오 Redirect URI" settingKey="kakao_redirect_uri" maskedValue={kakaoRedirectUri} onSave={handleSaveSecret} isSecret={false} />
+                        <SecretField label="SENS Access Key" settingKey="sens_access_key" maskedValue={sensAccessKey} onSave={handleSaveSecret} />
+                        <SecretField label="SENS Secret Key" settingKey="sens_secret_key" maskedValue={sensSecretKey} onSave={handleSaveSecret} />
+                        <SecretField label="SENS Service ID" settingKey="sens_service_id" maskedValue={sensServiceId} onSave={handleSaveSecret} isSecret={false} />
+                        <SecretField label="SENS 발신번호" settingKey="sens_sender" maskedValue={sensSender} onSave={handleSaveSecret} isSecret={false} />
+                    </div>
+                </div>
             </div>
         </div>
     );
