@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '@google/genai';
-import { extractGrounding, isRetryableGeminiError, safeParseJSON } from './gemini';
+import { buildGeminiConfig, extractGrounding, isRetryableGeminiError, safeParseJSON } from './gemini';
 
 function apiErrorWithStatus(status: number): ApiError {
     // ApiError 생성자는 ApiErrorInfo 형태를 받는다.
@@ -29,6 +29,23 @@ describe('safeParseJSON', () => {
     });
     it('파싱 실패 시 null을 반환한다', () => {
         expect(safeParseJSON('not json')).toBeNull();
+    });
+    it('코드블록 제거 후에도 실패하면 첫 { 부터 마지막 } 까지 잘라 재시도한다', () => {
+        const text = '요청하신 요약은 다음과 같습니다.\n{"a":1}\n이상입니다.';
+        expect(safeParseJSON<{ a: number }>(text)).toEqual({ a: 1 });
+    });
+});
+
+describe('buildGeminiConfig', () => {
+    it('googleSearch가 true면 responseMimeType이 없고 tools가 있다', () => {
+        const config = buildGeminiConfig(2048, { googleSearch: true });
+        expect(config).not.toHaveProperty('responseMimeType');
+        expect(config.tools).toEqual([{ googleSearch: {} }]);
+    });
+    it('기본 호출이면 responseMimeType이 application/json이고 tools가 없다', () => {
+        const config = buildGeminiConfig(2048);
+        expect(config.responseMimeType).toBe('application/json');
+        expect(config).not.toHaveProperty('tools');
     });
 });
 
