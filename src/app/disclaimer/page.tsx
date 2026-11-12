@@ -13,7 +13,7 @@ export default function DisclaimerPage() {
 
             <main className="max-w-3xl mx-auto pb-40">
                 <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">면책공고 (Disclaimer)</h1>
-                <p className="text-accent font-mono text-sm mb-16">Last updated: March 09, 2026</p>
+                <p className="text-accent font-mono text-sm mb-16">Last updated: November 12, 2026</p>
 
                 <div className="space-y-12 text-text-secondary leading-relaxed font-medium">
                     <section>
@@ -29,12 +29,12 @@ export default function DisclaimerPage() {
 
                     <section>
                         <h2 className="text-2xl font-bold text-text mb-6">법적 책임의 면제</h2>
-                        <p className="mb-4">따라서, 본 서비스 제공자와 개발자는 다음의 경우에 대하여 어떠한 법적, 도의적, 재산상 손실의 책임도 부담하지 않습니다.</p>
+                        <p className="mb-4">서비스 제공자의 고의 또는 중대한 과실로 인한 경우를 제외하고, 본 서비스 제공자와 개발자는 AI가 생성한 안내 정보의 정확성·완전성 및 이용자가 이를 근거로 한 판단에 대하여 법적, 도의적, 재산상 책임을 부담하지 않습니다. 구체적으로 다음 각 호의 경우가 이에 해당합니다.</p>
                         <ul className="list-disc pl-5 space-y-2">
                             <li>본 서비스가 안내한 정보에 전적으로 의존하여 취업, 이직, 퇴사, 교육 수강 등 중대한 결정을 내림으로써 발생한 피해</li>
                             <li>본 서비스의 진단 결과를 바탕으로 관할 고용센터에 수급 자격을 요구하여 거절당한 경우의 결과</li>
-                            <li>시스템 다운타임, 서비스 중단, 답변 지연으로 인한 간접적인 시간 및 기회비용 손실</li>
                         </ul>
+                        <p className="mt-4">시스템 다운타임, 서비스 중단, 답변 지연 등 서비스 운영상의 사유로 발생한 간접적인 시간 및 기회비용 손실도, 서비스 제공자의 고의 또는 중대한 과실이 없는 한 책임을 부담하지 않습니다.</p>
                     </section>
 
                     <div className="p-8 border-l-4 border-accent bg-accent-soft rounded-r-2xl mt-16 font-semibold text-text-secondary">

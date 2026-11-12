@@ -13,7 +13,7 @@ export default function TermsPage() {
 
             <main className="max-w-3xl mx-auto pb-40">
                 <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">서비스 이용약관</h1>
-                <p className="text-accent font-mono text-sm mb-16">Last updated: March 09, 2026</p>
+                <p className="text-accent font-mono text-sm mb-16">Last updated: November 12, 2026</p>
 
                 <div className="space-y-12 text-text-secondary leading-relaxed font-medium">
                     <section>
@@ -30,12 +30,12 @@ export default function TermsPage() {
                     <section>
                         <h2 className="text-2xl font-bold text-text mb-6">제3조 (이용자의 의무)</h2>
                         <p className="mb-4">1. 이용자는 서비스를 불법적이거나 부당한 목적으로 사용해서는 안 됩니다.</p>
-                        <p>2. 서비스의 안내 내용을 기반으로 행한 결정이나 행동에 대한 최종 책임은 이용자 본인에게 있습니다.</p>
+                        <p>2. 서비스의 안내 내용을 기반으로 행한 결정이나 행동에 대한 최종 책임은 이용자 본인에게 있습니다. 다만 서비스 제공자의 고의 또는 중대한 과실로 인한 경우는 제외합니다.</p>
                     </section>
 
                     <section>
                         <h2 className="text-2xl font-bold text-text mb-6">제4조 (서비스 중단 및 변경)</h2>
-                        <p>서비스 제공자는 기술적 필요, 운영상의 문제, 혹은 관련 제도의 개편 등 합리적인 사유가 있을 시 예고 없이 서비스의 일부 또는 전부를 수정, 중단, 또는 폐지할 수 있습니다.</p>
+                        <p>서비스 제공자는 기술적 필요, 운영상의 문제, 혹은 관련 제도의 개편 등 합리적인 사유가 있을 시 사전에 서비스 화면을 통해 공지한 후(다만 긴급한 기술적 장애 등 부득이한 경우에는 사후 공지) 서비스의 일부 또는 전부를 수정, 중단, 또는 폐지할 수 있습니다. 이 경우에도 서비스 제공자의 고의 또는 중대한 과실로 이용자에게 손해가 발생한 때에는 그 책임을 면하지 않습니다.</p>
                     </section>
                 </div>
             </main>
