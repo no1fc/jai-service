@@ -7,18 +7,13 @@
 import { getSetting } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { buildSensSignature } from './sens-signature';
+import { maskPhone } from './phone';
 
 const SENS_BASE_URL = 'https://sens.apigw.ntruss.com';
 const SENS_FETCH_TIMEOUT_MS = 5000;
 
 /** 운영에서 SMS_PROVIDER가 미설정/log일 때 던지는 전용 에러 — 라우트가 503과 구분 처리한다. */
 export class SmsNotConfiguredError extends Error {}
-
-/** 번호를 마스킹한다(앞 3자리·뒤 4자리만 노출) — 로그에 전체 번호를 남기지 않기 위함. */
-function maskPhone(phone: string): string {
-    if (phone.length < 7) return '***';
-    return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
-}
 
 /** SENS 설정 4종을 모두 조회한다. 하나라도 비어 있으면 throw(비밀값은 에러 메시지에 포함하지 않음). */
 async function requireSensSettings(): Promise<{ accessKey: string; secretKey: string; serviceId: string; from: string }> {

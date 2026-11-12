@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
-import { phoneSchema, verifyCode } from '@/lib/analysis/auth/phone';
+import { maskPhone, phoneSchema, verifyCode } from '@/lib/analysis/auth/phone';
 import { incrementAttempts, latestVerification, markVerified } from '@/lib/analysis/auth/phone-store';
 import { upsertUser } from '@/lib/analysis/users';
 import { issueUserSession } from '@/lib/analysis/auth/user-session';
@@ -16,8 +16,14 @@ const verifySchema = z.object({
     code: z.string().regex(/^\d{6}$/),
 });
 
-// mismatch·used를 구분하지 않는 일반 메시지 — 코드 재사용 여부를 외부에 드러내지 않는다.
-const GENERIC_INVALID = '인증번호가 올바르지 않습니다.';
+// 이력 없음·만료·불일치·사용됨·횟수 초과를 모두 같은 응답으로 묶는다 — 외부에 내부 사유를 드러내지 않는다.
+// 실제 사유는 마스킹한 번호와 함께 서버 로그에만 남긴다.
+const GENERIC_INVALID = '인증번호가 올바르지 않거나 만료되었습니다. 인증번호를 다시 요청해 주세요.';
+
+function rejectVerify(phone: string, reason: string) {
+    logger.warn(`[phone-verify] ${maskPhone(phone)} 거부(${reason})`);
+    return apiError(GENERIC_INVALID, 400);
+}
 
 export async function POST(request: NextRequest) {
     const ip = getClientIp(request);
@@ -31,27 +37,25 @@ export async function POST(request: NextRequest) {
 
     try {
         const row = await latestVerification(phone);
-        if (!row) return apiError('인증번호를 먼저 요청해 주세요.', 400);
+        if (!row) return rejectVerify(phone, 'not_found');
 
-        // 비교 전에 먼저 시도 횟수를 증가시킨다 — 증가된 값으로 비교해야 정답이어도 초과 시 거부된다.
-        await incrementAttempts(row.id);
-        const result = verifyCode({ ...row, attempts: row.attempts + 1 }, phone, code, new Date());
+        // 비교 전에 시도 횟수를 원자적으로 증가시키고, DB가 반환한 실제 값만을 판정에 쓴다.
+        // 로컬에서 "row.attempts + 1"을 계산해 쓰면 동시 요청이 모두 같은 낮은 값을 보게 되어
+        // 사실상 무제한 코드 추측이 가능해진다 — 그래서 반드시 store의 반환값을 써야 한다.
+        const attempts = await incrementAttempts(row.id);
+        if (attempts === null) return rejectVerify(phone, 'already_verified_or_missing');
 
-        switch (result) {
-            case 'ok': {
-                await markVerified(row.id);
-                const user = await upsertUser({ provider: 'phone', providerId: phone, consent: true });
-                const res = apiSuccess({ user });
-                await issueUserSession(res, user.id, request);
-                return res;
-            }
-            case 'expired':
-                return apiError('인증번호가 만료되었습니다.', 400);
-            case 'exhausted':
-                return apiError('시도 횟수를 초과했습니다. 다시 요청해 주세요.', 429);
-            default:
-                return apiError(GENERIC_INVALID, 400);
-        }
+        const result = verifyCode({ ...row, attempts }, phone, code, new Date());
+        if (result !== 'ok') return rejectVerify(phone, result);
+
+        // 1회용 처리도 원자적으로 — 동시 요청 중 실제로 갱신에 성공한 단 하나만 로그인시킨다.
+        const verified = await markVerified(row.id);
+        if (!verified) return rejectVerify(phone, 'race_already_verified');
+
+        const user = await upsertUser({ provider: 'phone', providerId: phone, consent: true });
+        const res = apiSuccess({ user });
+        await issueUserSession(res, user.id, request);
+        return res;
     } catch (error) {
         logger.error('/api/analysis/auth/phone/verify 오류:', error);
         return apiError('인증 처리에 실패했습니다.', 500);

@@ -12,7 +12,6 @@ const SENS_SETTINGS: Record<string, string> = {
 };
 
 describe('sendSms', () => {
-    const originalEnv = { ...process.env };
     let fetchMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
@@ -22,12 +21,12 @@ describe('sendSms', () => {
     });
 
     afterEach(() => {
-        process.env = { ...originalEnv };
+        vi.unstubAllEnvs();
         vi.unstubAllGlobals();
     });
 
     it('SMS_PROVIDER=log면 번호를 마스킹해 경고 로그를 남기고 fetch는 호출하지 않는다', async () => {
-        process.env.SMS_PROVIDER = 'log';
+        vi.stubEnv('SMS_PROVIDER', 'log');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
         await sendSms('01012345678', '[J.AI] 인증번호 123456 (3분 내 입력)');
@@ -41,7 +40,7 @@ describe('sendSms', () => {
     });
 
     it('SMS_PROVIDER 미설정이면 log 모드와 동일하게 동작한다', async () => {
-        delete process.env.SMS_PROVIDER;
+        vi.stubEnv('SMS_PROVIDER', '');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
         await sendSms('01012345678', 'text');
@@ -51,15 +50,15 @@ describe('sendSms', () => {
     });
 
     it('SMS_PROVIDER=sens인데 설정값이 하나라도 없으면 throw하고 fetch하지 않는다', async () => {
-        process.env.SMS_PROVIDER = 'sens';
+        vi.stubEnv('SMS_PROVIDER', 'sens');
         vi.mocked(getSetting).mockImplementation(async (key: string) => (key === 'sens_secret_key' ? null : SENS_SETTINGS[key] ?? null));
 
         await expect(sendSms('01012345678', 'text')).rejects.toThrow();
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('자격증명이 모두 있으면 서명 헤더를 포함해 SENS API를 호출한다', async () => {
-        process.env.SMS_PROVIDER = 'sens';
+    it('자격증명이 모두 있으면 서명·타임아웃 signal 헤더를 포함해 SENS API를 호출한다', async () => {
+        vi.stubEnv('SMS_PROVIDER', 'sens');
         vi.mocked(getSetting).mockImplementation(async (key: string) => SENS_SETTINGS[key] ?? null);
 
         await sendSms('01012345678', 'text');
@@ -70,12 +69,13 @@ describe('sendSms', () => {
         expect(init.headers['x-ncp-apigw-signature-v2']).toBeTypeOf('string');
         expect(init.headers['x-ncp-iam-access-key']).toBe('AK');
         expect(init.headers['x-ncp-apigw-timestamp']).toBeTypeOf('string');
+        expect(init.signal).toBeInstanceOf(AbortSignal); // 5초 타임아웃 signal이 실제로 전달되는지 확인
         const body = JSON.parse(init.body);
         expect(body).toMatchObject({ type: 'SMS', contentType: 'COMM', countryCode: '82', from: '01000000000', content: 'text', messages: [{ to: '01012345678' }] });
     });
 
     it('SENS 응답이 2xx가 아니면 throw한다', async () => {
-        process.env.SMS_PROVIDER = 'sens';
+        vi.stubEnv('SMS_PROVIDER', 'sens');
         vi.mocked(getSetting).mockImplementation(async (key: string) => SENS_SETTINGS[key] ?? null);
         fetchMock.mockResolvedValue({ ok: false, status: 400 });
 
@@ -84,7 +84,7 @@ describe('sendSms', () => {
 
     it('운영(NODE_ENV=production)에서 SMS_PROVIDER 미설정이면 코드를 로그로 남기지 않고 SmsNotConfiguredError를 던진다', async () => {
         vi.stubEnv('NODE_ENV', 'production');
-        delete process.env.SMS_PROVIDER;
+        vi.stubEnv('SMS_PROVIDER', '');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
         await expect(sendSms('01012345678', '[J.AI] 인증번호 123456 (3분 내 입력)')).rejects.toThrow(SmsNotConfiguredError);
@@ -95,7 +95,7 @@ describe('sendSms', () => {
 
     it('운영에서 SMS_PROVIDER=log여도 SmsNotConfiguredError를 던진다', async () => {
         vi.stubEnv('NODE_ENV', 'production');
-        process.env.SMS_PROVIDER = 'log';
+        vi.stubEnv('SMS_PROVIDER', 'log');
 
         await expect(sendSms('01012345678', 'text')).rejects.toThrow(SmsNotConfiguredError);
     });

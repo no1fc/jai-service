@@ -30,15 +30,16 @@ function req(body: unknown) {
 }
 
 const VALID_BODY = { phone: '01012345678', code: '123456' };
-const ROW = { id: 7, code_hash: 'hash', attempts: 0, expires_at: new Date(), verified_at: null };
+const ROW = { id: 7, code_hash: 'hash', attempts: 4, expires_at: new Date(), verified_at: null };
+const GENERIC_INVALID = '인증번호가 올바르지 않거나 만료되었습니다. 인증번호를 다시 요청해 주세요.';
 
 beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(getClientIp).mockReturnValue('1.1.1.1');
     vi.mocked(checkRateLimit).mockReturnValue({ allowed: true, remaining: 29, resetAt: Date.now() + 1000 });
     vi.mocked(latestVerification).mockResolvedValue(ROW);
-    vi.mocked(incrementAttempts).mockResolvedValue(undefined);
-    vi.mocked(markVerified).mockResolvedValue(undefined);
+    vi.mocked(incrementAttempts).mockResolvedValue(5); // store가 반환하는 "원자적으로 증가된" 실제 값
+    vi.mocked(markVerified).mockResolvedValue(true);
     vi.mocked(verifyCode).mockReturnValue('ok');
     vi.mocked(upsertUser).mockResolvedValue({ id: 42 });
 });
@@ -57,21 +58,32 @@ describe('POST /api/analysis/auth/phone/verify', () => {
         expect(latestVerification).not.toHaveBeenCalled();
     });
 
-    it('발송 기록이 없으면 400 "인증번호를 먼저 요청해 주세요." (세션 미발급)', async () => {
+    it('발송 기록이 없으면 통일된 400 메시지 (세션 미발급, 증가 호출 없음)', async () => {
         vi.mocked(latestVerification).mockResolvedValue(null);
         const res = await POST(req(VALID_BODY));
         expect(res.status).toBe(400);
         const json = await res.json();
-        expect(json.error).toBe('인증번호를 먼저 요청해 주세요.');
+        expect(json.error).toBe(GENERIC_INVALID);
         expect(incrementAttempts).not.toHaveBeenCalled();
         expect(issueUserSession).not.toHaveBeenCalled();
     });
 
-    it('비교 전에 시도 횟수를 먼저 증가시키고, 증가된 값으로 비교한다', async () => {
+    it('incrementAttempts가 null(이미 사용됨/행 없음)이면 비교 없이 통일된 400으로 거부한다', async () => {
+        vi.mocked(incrementAttempts).mockResolvedValue(null);
+        const res = await POST(req(VALID_BODY));
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.error).toBe(GENERIC_INVALID);
+        expect(verifyCode).not.toHaveBeenCalled();
+        expect(issueUserSession).not.toHaveBeenCalled();
+    });
+
+    it('비교 전에 시도 횟수를 먼저 원자적으로 증가시키고, store가 반환한 실제 값으로만 비교한다(로컬 +1 계산 금지)', async () => {
         await POST(req(VALID_BODY));
         expect(incrementAttempts).toHaveBeenCalledWith(7);
+        // store가 반환한 값(5)을 그대로 써야 한다 — row.attempts(4)+1을 로컬로 계산해서 쓰면 안 된다.
         expect(verifyCode).toHaveBeenCalledWith(
-            expect.objectContaining({ attempts: ROW.attempts + 1 }),
+            expect.objectContaining({ attempts: 5 }),
             '01012345678',
             '123456',
             expect.any(Date),
@@ -81,7 +93,26 @@ describe('POST /api/analysis/auth/phone/verify', () => {
         expect(incrementOrder).toBeLessThan(verifyOrder);
     });
 
-    it('ok → 사용 완료 처리 + upsertUser(phone) + 세션 발급 + 200', async () => {
+    it('동시 요청 시나리오: 같은 row(attempts=4)를 읽어도 store가 5·6을 순서대로 반환하면 둘 다 exhausted로 거부된다', async () => {
+        vi.mocked(incrementAttempts).mockResolvedValueOnce(5).mockResolvedValueOnce(6);
+        vi.mocked(latestVerification).mockResolvedValue(ROW); // 두 요청 모두 같은 stale snapshot(attempts=4)을 읽음
+        const { verifyCode: actualVerifyCode } = await vi.importActual<typeof import('@/lib/analysis/auth/phone')>('@/lib/analysis/auth/phone');
+        vi.mocked(verifyCode).mockImplementation(actualVerifyCode);
+
+        const res1 = await POST(req(VALID_BODY));
+        const res2 = await POST(req(VALID_BODY));
+
+        expect(res1.status).toBe(400);
+        expect(res2.status).toBe(400);
+        expect((await res1.json()).error).toBe(GENERIC_INVALID);
+        expect((await res2.json()).error).toBe(GENERIC_INVALID);
+        expect(issueUserSession).not.toHaveBeenCalled();
+        // 두 호출 모두 store가 돌려준 실제 값(5, 6)으로 비교했는지 확인 — 둘 다 MAX_ATTEMPTS(5) 이상이라 exhausted.
+        expect(verifyCode).toHaveBeenNthCalledWith(1, expect.objectContaining({ attempts: 5 }), '01012345678', '123456', expect.any(Date));
+        expect(verifyCode).toHaveBeenNthCalledWith(2, expect.objectContaining({ attempts: 6 }), '01012345678', '123456', expect.any(Date));
+    });
+
+    it('ok → markVerified(원자적 1회용 처리) 성공 시 upsertUser(phone) + 세션 발급 + 200', async () => {
         const res = await POST(req(VALID_BODY));
         expect(markVerified).toHaveBeenCalledWith(7);
         expect(upsertUser).toHaveBeenCalledWith({ provider: 'phone', providerId: '01012345678', consent: true });
@@ -91,37 +122,25 @@ describe('POST /api/analysis/auth/phone/verify', () => {
         expect(json).toMatchObject({ success: true, user: { id: 42 } });
     });
 
-    it('expired → 400 "인증번호가 만료되었습니다." (세션 미발급)', async () => {
-        vi.mocked(verifyCode).mockReturnValue('expired');
+    it('ok인데 markVerified가 false(동시 요청 중 레이스로 선점당함)면 통일된 400으로 거부하고 세션을 발급하지 않는다', async () => {
+        vi.mocked(markVerified).mockResolvedValue(false);
         const res = await POST(req(VALID_BODY));
         expect(res.status).toBe(400);
         const json = await res.json();
-        expect(json.error).toBe('인증번호가 만료되었습니다.');
+        expect(json.error).toBe(GENERIC_INVALID);
+        expect(upsertUser).not.toHaveBeenCalled();
         expect(issueUserSession).not.toHaveBeenCalled();
     });
 
-    it('exhausted → 429 "시도 횟수를 초과했습니다. 다시 요청해 주세요."', async () => {
-        vi.mocked(verifyCode).mockReturnValue('exhausted');
-        const res = await POST(req(VALID_BODY));
-        expect(res.status).toBe(429);
-        const json = await res.json();
-        expect(json.error).toBe('시도 횟수를 초과했습니다. 다시 요청해 주세요.');
-        expect(issueUserSession).not.toHaveBeenCalled();
-    });
-
-    it('mismatch → 400 "인증번호가 올바르지 않습니다."', async () => {
-        vi.mocked(verifyCode).mockReturnValue('mismatch');
-        const res = await POST(req(VALID_BODY));
-        expect(res.status).toBe(400);
-        const json = await res.json();
-        expect(json.error).toBe('인증번호가 올바르지 않습니다.');
-    });
-
-    it('used → 400 "인증번호가 올바르지 않습니다." (mismatch와 동일한 일반 메시지)', async () => {
-        vi.mocked(verifyCode).mockReturnValue('used');
-        const res = await POST(req(VALID_BODY));
-        expect(res.status).toBe(400);
-        const json = await res.json();
-        expect(json.error).toBe('인증번호가 올바르지 않습니다.');
-    });
+    it.each(['expired', 'exhausted', 'mismatch', 'used'] as const)(
+        '%s → 통일된 400 메시지(세션 미발급)',
+        async (result) => {
+            vi.mocked(verifyCode).mockReturnValue(result);
+            const res = await POST(req(VALID_BODY));
+            expect(res.status).toBe(400);
+            const json = await res.json();
+            expect(json.error).toBe(GENERIC_INVALID);
+            expect(issueUserSession).not.toHaveBeenCalled();
+        },
+    );
 });
