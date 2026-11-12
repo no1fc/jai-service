@@ -1,7 +1,7 @@
 # J.AI 코드베이스 이슈 트래커
 
 > 마지막 업데이트: 2026-11-12
-> 총 33개 이슈 | 해결: 20 | 미해결: 10 (DX-01, JAI-02~10)
+> 총 40개 이슈 | 해결: 20 | 미해결: 17 (DX-01, JAI-02~10, ANL-01~07)
 
 ---
 
@@ -65,6 +65,52 @@
 - **상태**: [ ] 미해결
 - **파일**: -
 - **설명**: 국민취업지원제도 위탁기관(잡모아) 운영지침상 참여자 모집·홍보 방식, 정보 연계 절차가 본 서비스의 상담 신청·AI 안내 흐름과 충돌하지 않는지 관할 고용센터 확인이 필요하다(`배포.md` (i)항).
+
+---
+
+## P0: AI 직무·산업 분석 후속 (미해결)
+
+### ANL-01: 그라운딩 검색 제안(searchEntryPoint) 표시 의무 약관 확인
+
+- **상태**: [ ] 미해결
+- **파일**: `src/lib/analysis/generate.ts`
+- **설명**: 경쟁사 데이터 옵션 ON 시 Gemini 연구 호출이 Google Search 그라운딩을 사용한다. Google이 요구하는 검색 제안(searchEntryPoint) 표시 의무를 현재 화면에 반영했는지 약관 재확인이 필요하다.
+
+### ANL-02: 카카오 탈퇴 시 unlink 연동
+
+- **상태**: [ ] 미해결
+- **파일**: `src/lib/analysis/users.ts`
+- **설명**: 분석 서비스 회원 탈퇴 시 자사 DB 레코드만 삭제하고 카카오 측 연결은 끊지 않는다. 카카오 Unlink API 연동 필요.
+
+### ANL-03: 분석 일일 한도 인메모리 (JAI-03 공유 저장소와 함께)
+
+- **상태**: [ ] 미해결
+- **파일**: `src/lib/analysis/limits.ts`
+- **설명**: 분석 생성 일일 한도도 `src/lib/rate-limit.ts`와 동일하게 인메모리 Map 기반이라 단일 인스턴스를 전제한다. PM2 클러스터 전환 시 JAI-03과 함께 공유 저장소(Redis 등)로 교체 필요.
+
+### ANL-04: 고용24 급여 포맷 실데이터 검증 후 파서 보정
+
+- **상태**: [ ] 미해결
+- **파일**: `src/lib/analysis/work24.ts`, `src/lib/analysis/work24-summary.ts`
+- **설명**: 고용24 급여 정보 포맷을 샘플 XML(`__fixtures__/work24-sample.xml`) 기준으로만 파싱했다. 실제 키 발급 후 운영 데이터로 재검증하고 파서를 보정해야 한다.
+
+### ANL-05: SENS SMS API v2 전체 요청/응답 스키마 공식 문서 재확인
+
+- **상태**: [ ] 미해결
+- **파일**: `src/lib/analysis/auth/sms.ts`, `src/lib/analysis/auth/sens-signature.ts`
+- **설명**: 이번 조사에서 `apidocs.ncloud.com` 접속이 실패해 공식 문서를 직접 확인하지 못했고, 2차 자료로만 교차 확인했다. SENS 계약 후 공식 문서로 요청/응답 스키마 전체를 재검증 필요.
+
+### ANL-06: /api/admin/me가 role을 검사하지 않음
+
+- **상태**: [ ] 미해결
+- **파일**: `src/app/api/admin/me/route.ts`
+- **설명**: `/api/admin/me`는 JWT 서명만 검증하고 `payload.role`을 검사하지 않는다. 분석 서비스 참여자 토큰을 `admin_session` 쿠키에 넣으면 200과 `role: 'user'`가 반환된다. 권한 상승은 아니지만(실제 admin 권한이 부여되지는 않음), 응답으로 역할 혼동을 유발할 수 있어 토큰 발급처별 분리 또는 역할 화이트리스트 검사 추가 권장.
+
+### ANL-07: 설정 저장은 superadmin 전용이라 admin 역할은 외부 연동 화면을 보지만 저장 시 403
+
+- **상태**: [ ] 미해결
+- **파일**: `src/app/api/admin/settings/route.ts`, `src/app/admin/settings/api-keys/page.tsx`
+- **설명**: `/admin/settings/api-keys`의 "외부 연동" 섹션은 `admin`/`superadmin` 모두 화면에 보이지만, 저장 API(`PUT /api/admin/settings`)는 `requireRole('superadmin')`만 허용해 `admin` 역할로 저장을 시도하면 403이 발생한다. UX상 혼란을 줄이려면 화면에서 `admin` 역할에는 저장 버튼을 비활성화하거나 안내 문구 추가 필요.
 
 ---
 
@@ -229,3 +275,4 @@
 | 2026-05-11 | 19/23개 해결. SEC-01~06(보안), ARCH-01~05(아키텍처), CODE-01~06(코드품질), DESIGN-01~03(디자인), DX-02(로깅). useReducer 리팩토링, logger, apiSuccess/apiError, ErrorBoundary, OPENJSON, Zod, Rate Limiting, CSS 변수 통일, MapPreview 분리, 애니메이션 정리 |
 | 2026-11-12 | 개인정보처리방침을 관리자(최고 관리자 전용) 화면에서 실시간 미리보기와 함께 편집하도록 추가 (`/admin/settings/privacy`, `src/lib/privacy/policy.ts`) |
 | 2026-11-12 | Task 12: 법률 검토 반영 — 국외 이전 고지 보강, 리드 1년 경과 자동 파기(JAI-01 해결), AI 생성 표시 배지, 면책·약관 고의·중과실 예외, 관리자 접속기록(`admin_access_logs`), 만 14세 확인. 후속으로 JAI-09(접속기록 조회 화면), JAI-10(위탁지침 확인) 등록 |
+| 2026-11-12 | Task 12: AI 직무·산업 분석 서비스(`/analysis`) 처리방침 개정 반영 및 후속 이슈 ANL-01~07 등록 (그라운딩 표시·카카오 unlink·일일 한도 인메모리·고용24 파서 검증·SENS 문서 재확인·`/api/admin/me` role 미검사·설정 저장 403) |
