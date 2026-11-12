@@ -65,6 +65,6 @@ export const DELETE_USER_SQL = `
 export async function deleteUser(id: number): Promise<boolean> {
     const pool = await getPool();
     const result = await pool.request().input('id', sql.Int, id).query(DELETE_USER_SQL);
-    // rowsAffected는 배치 내 각 문장 순서대로 쌍이 쌓인다: [0]=UPDATE, [1]=DELETE.
-    return (result.rowsAffected[1] ?? 0) > 0;
+    // rowsAffected는 배치 문장 순서대로 쌓인다([UPDATE, DELETE]). NOCOUNT ON이면 비므로 마지막 값(DELETE)을 본다.
+    return (result.rowsAffected.at(-1) ?? 0) > 0;
 }
