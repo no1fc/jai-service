@@ -117,7 +117,7 @@ export const askRequestSchema = z.object({
     messages: z.array(z.object({
         role: z.enum(['user', 'model']),
         text: z.string().trim().min(1).max(500, '질문은 500자 이내로 입력해주세요.'),
-    })).min(1).max(30)
+    })).min(1).max(30, '대화가 너무 깁니다. 새로고침 후 다시 질문해 주세요.')
         .refine(m => m[m.length - 1].role === 'user', '마지막 메시지는 질문이어야 합니다.'),
 });
 

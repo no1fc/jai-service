@@ -3,10 +3,11 @@
  */
 export type AskMessage = { role: 'user' | 'model'; text: string };
 
-const MAX_TURNS = 10;
+// 서버 프롬프트와 클라이언트(page.tsx) 전송 이력이 공유하는 최대 대화 개수
+export const MAX_HISTORY_MESSAGES = 10;
 
 export function buildAskPrompt(knowledge: string, messages: AskMessage[]): string {
-    const recent = messages.slice(-MAX_TURNS)
+    const recent = messages.slice(-MAX_HISTORY_MESSAGES)
         .map(m => `${m.role === 'user' ? '사용자' : '상담봇'}: ${m.text}`)
         .join('\n');
     return `당신은 잡모아의 "J.AI 국취 상담봇"입니다. 국민취업지원제도 질문에 친절하고 정확하게 답합니다.

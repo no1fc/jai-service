@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         const answer = askAnswerSchema.safeParse(safeParseJSON(ai.text));
         await logApiUsage(ai.modelName, ai.usageMetadata?.promptTokenCount || 0,
             ai.usageMetadata?.candidatesTokenCount || 0, ai.usageMetadata?.totalTokenCount || 0, 'qna');
-        if (!answer.success) return apiError('답변을 만들지 못했습니다. 다시 질문해 주세요.', 502);
+        if (!answer.success) return apiError('답변을 만들지 못했습니다. 다시 질문하시거나 가까운 잡모아 지점으로 문의해 주세요.', 502);
         return apiSuccess(answer.data);
     } catch (error) {
         logger.error('/api/ask 오류:', error);
