@@ -16,7 +16,8 @@ import {
     LayoutDashboard,
     Lock,
     BarChart3,
-    Inbox
+    Inbox,
+    ShieldCheck
 } from 'lucide-react';
 
 const SIDEBAR_ITEMS = [
@@ -27,6 +28,7 @@ const SIDEBAR_ITEMS = [
     { name: '관리자 지정', href: '/admin/users', icon: Users, requiresSuperAdmin: true },
     { name: 'API 설정', href: '/admin/settings/api-keys', icon: KeyRound, requiresSuperAdmin: false },
     { name: '프롬프트 관리', href: '/admin/settings/prompts', icon: MessageSquareText, requiresSuperAdmin: true },
+    { name: '개인정보처리방침', href: '/admin/settings/privacy', icon: ShieldCheck, requiresSuperAdmin: true },
 ];
 
 export default function AdminLayout({

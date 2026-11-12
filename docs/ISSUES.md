@@ -214,3 +214,4 @@
 |------|---------|
 | 2026-04-29 | 최초 작성 - 21개 이슈 식별 및 문서화 |
 | 2026-05-11 | 19/23개 해결. SEC-01~06(보안), ARCH-01~05(아키텍처), CODE-01~06(코드품질), DESIGN-01~03(디자인), DX-02(로깅). useReducer 리팩토링, logger, apiSuccess/apiError, ErrorBoundary, OPENJSON, Zod, Rate Limiting, CSS 변수 통일, MapPreview 분리, 애니메이션 정리 |
+| 2026-11-12 | 개인정보처리방침을 관리자(최고 관리자 전용) 화면에서 실시간 미리보기와 함께 편집하도록 추가 (`/admin/settings/privacy`, `src/lib/privacy/policy.ts`) |

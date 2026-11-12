@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import { SIDO_LIST } from '@/lib/regions';
+import { PRIVACY_POLICY_MAX_CHARS } from '@/lib/privacy/policy';
 
 // ==========================================
 // Branches
@@ -126,6 +127,16 @@ export const askRequestSchema = z.object({
 export const askAnswerSchema = z.object({
     answer: z.string().min(1),
     suggestDiagnosis: z.boolean().default(false),
+});
+
+// ==========================================
+// 개인정보처리방침
+// ==========================================
+
+export const updatePrivacyPolicySchema = z.object({
+    policy: z.string().trim()
+        .min(1, '본문을 입력해주세요.')
+        .max(PRIVACY_POLICY_MAX_CHARS, `본문은 ${PRIVACY_POLICY_MAX_CHARS}자 이내로 입력해주세요.`),
 });
 
 // ==========================================
