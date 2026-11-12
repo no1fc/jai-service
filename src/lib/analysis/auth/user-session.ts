@@ -1,14 +1,17 @@
 /**
- * 공개 분석 API용 참여자(user) 세션 조회.
- * 쿠키 발급(로그인)은 Task 7에서 구현하며, 이 모듈은 조회만 담당한다.
+ * 공개 분석 API용 참여자(user) 세션 조회·발급.
  */
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import type { NextResponse } from 'next/server';
+import { signToken, verifyToken } from '@/lib/auth';
 import type { Actor } from '@/lib/analysis/reports';
+
+export const USER_COOKIE = 'user_session';
+const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7일
 
 /** user_session 쿠키를 검증해 로그인한 참여자만 식별한다. 관리자 토큰·만료·부재는 null. */
 export async function getCurrentUser(): Promise<{ id: number } | null> {
-    const token = (await cookies()).get('user_session')?.value;
+    const token = (await cookies()).get(USER_COOKIE)?.value;
     if (!token) return null;
     const payload = await verifyToken(token);
     if (!payload || payload.role !== 'user') return null;
@@ -20,4 +23,27 @@ export async function getCurrentUser(): Promise<{ id: number } | null> {
 export async function actorFromRequest(): Promise<Actor> {
     const user = await getCurrentUser();
     return user ? { kind: 'user', userId: user.id } : { kind: 'anon' };
+}
+
+/**
+ * 참여자 로그인 세션 쿠키를 발급한다(7일, httpOnly, sameSite lax).
+ * secure 판정은 기존 관리자 로그인(`/api/admin/login`)과 동일하게 프로덕션 + HTTPS일 때만 켠다.
+ */
+export async function issueUserSession(res: NextResponse, userId: number, request: Request): Promise<void> {
+    const token = await signToken({ id: String(userId), role: 'user' }, '7d');
+    const isHttps = request.headers.get('x-forwarded-proto') === 'https' || request.url.startsWith('https://');
+    res.cookies.set({
+        name: USER_COOKIE,
+        value: token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production' && isHttps,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: SESSION_MAX_AGE_SEC,
+    });
+}
+
+/** 참여자 로그아웃 — user_session 쿠키를 삭제한다. */
+export function clearUserSession(res: NextResponse): void {
+    res.cookies.delete(USER_COOKIE);
 }
