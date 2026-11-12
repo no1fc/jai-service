@@ -71,7 +71,7 @@ BEGIN
         consent_at DATETIME2 NOT NULL,
         report NVARCHAR(MAX) NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'new',
-        created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
     CREATE INDEX IX_leads_created_at ON leads (created_at DESC);
 END;

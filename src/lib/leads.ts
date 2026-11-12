@@ -15,8 +15,10 @@ export async function insertLead(input: LeadInput): Promise<number> {
         .input('desired_job', sql.NVarChar(100), input.desiredJob)
         .input('source', sql.VarChar(20), input.source)
         .input('payload', sql.NVarChar(sql.MAX), JSON.stringify(input.payload))
-        .query(`INSERT INTO leads (name, phone, region, desired_job, source, payload, consent_at)
-                OUTPUT INSERTED.id VALUES (@name, @phone, @region, @desired_job, @source, @payload, SYSDATETIME())`);
+        // mssql 드라이버는 DATETIME2를 UTC로 해석하므로, 저장도 UTC(SYSUTCDATETIME)로 맞춘다.
+        // created_at은 테이블의 기존 기본값(SYSDATETIME)이 로컬 시간이라 명시적으로 덮어쓴다.
+        .query(`INSERT INTO leads (name, phone, region, desired_job, source, payload, consent_at, created_at)
+                OUTPUT INSERTED.id VALUES (@name, @phone, @region, @desired_job, @source, @payload, SYSUTCDATETIME(), SYSUTCDATETIME())`);
     return r.recordset[0].id as number;
 }
 
