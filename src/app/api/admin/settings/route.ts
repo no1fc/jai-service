@@ -18,11 +18,13 @@ export async function GET() {
 
         // DB에 저장되지 않은 설정들(Default 값)을 클라이언트에 제공
         const { DEFAULT_INTRO_MESSAGE, DEFAULT_INFO_MESSAGE } = await import('@/lib/prompts');
+        const { DEFAULT_QNA_KNOWLEDGE } = await import('@/lib/qna/knowledge');
 
         for (const cat of promptCategories) {
             if (!settings[cat.key] || settings[cat.key].trim() === '') {
                 if (cat.key === 'intro_message') settings[cat.key] = JSON.stringify(DEFAULT_INTRO_MESSAGE);
                 else if (cat.key === 'info_message') settings[cat.key] = JSON.stringify(DEFAULT_INFO_MESSAGE);
+                else if (cat.key === 'qna_knowledge') settings[cat.key] = DEFAULT_QNA_KNOWLEDGE;
             }
         }
 
