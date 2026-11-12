@@ -5,6 +5,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import AiGeneratedBadge from '@/components/AiGeneratedBadge';
+import { dataBadgeLabels } from '@/lib/analysis/labels';
 import {
     ANALYSIS_TYPE_LABEL,
     type IndustryReport, type JobReport, type PublicReport, type Work24Summary,
@@ -23,12 +24,6 @@ const chip = 'h-9 inline-flex items-center px-3 rounded-full border border-borde
 function daysAgoLabel(createdAt: string): string {
     const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000);
     return days <= 0 ? '오늘 생성' : `${days}일 전 생성`;
-}
-
-/** meta.dataUsed에 따른 데이터 반영 배지 라벨(둘 다/하나만/AI 지식 기반). */
-function dataBadgeLabels(report: PublicReport): string[] {
-    const labels = report.meta.dataUsed.map(d => (d === 'work24' ? '고용24 반영' : '웹 검색 반영'));
-    return labels.length > 0 ? labels : ['AI 지식 기반'];
 }
 
 /** 고용24가 반영되지 않은 사유(범위가 해외 포함이거나, 켰는데도 수치가 없는 경우). */

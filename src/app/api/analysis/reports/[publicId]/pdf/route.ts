@@ -12,14 +12,14 @@ type Ctx = { params: Promise<{ publicId: string }> };
 const publicIdSchema = z.string().uuid();
 
 export async function GET(request: NextRequest, ctx: Ctx) {
+    // DB 컬럼이 UNIQUEIDENTIFIER라 형식이 틀리면 변환 오류가 나므로 조회 전에 걸러낸다.
+    // 존재 여부를 드러내지 않도록 형식 오류도 조회 실패와 같은 404로 응답한다(브리프 순서: uuid 검증 → rate limit).
+    const parsed = publicIdSchema.safeParse((await ctx.params).publicId);
+    if (!parsed.success) return apiError('리포트를 찾을 수 없습니다.', 404);
+
     const ip = getClientIp(request);
     const burst = checkRateLimit(`analysis:pdf:${ip}`, { maxRequests: 10, windowMs: 60 * 1000 });
     if (!burst.allowed) return apiError('요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.', 429);
-
-    // DB 컬럼이 UNIQUEIDENTIFIER라 형식이 틀리면 변환 오류가 나므로 조회 전에 걸러낸다.
-    // 존재 여부를 드러내지 않도록 형식 오류도 조회 실패와 같은 404로 응답한다.
-    const parsed = publicIdSchema.safeParse((await ctx.params).publicId);
-    if (!parsed.success) return apiError('리포트를 찾을 수 없습니다.', 404);
 
     try {
         const { getReportByPublicId, toPublicReport } = await import('@/lib/analysis/reports');

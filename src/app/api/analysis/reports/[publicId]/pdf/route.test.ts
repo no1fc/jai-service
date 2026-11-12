@@ -27,9 +27,10 @@ beforeEach(() => {
 });
 
 describe('GET /api/analysis/reports/[publicId]/pdf', () => {
-    it('UUID 형식이 아니면 404이고 DB를 호출하지 않는다', async () => {
+    it('UUID 형식이 아니면 rate limit 확인 전에 404를 반환하고 DB를 호출하지 않는다(브리프 순서: uuid 검증 → rate limit)', async () => {
         const res = await GET(getRequest(), ctx('not-a-uuid'));
         expect(res.status).toBe(404);
+        expect(checkRateLimit).not.toHaveBeenCalled();
         expect(getReportByPublicId).not.toHaveBeenCalled();
     });
 

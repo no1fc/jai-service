@@ -4,16 +4,18 @@
  */
 import type { ReactNode } from 'react';
 import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { dataBadgeLabels } from '../labels';
 import {
     ANALYSIS_TYPE_LABEL,
     type IndustryReport, type JobReport, type PublicReport, type Work24Summary,
 } from '../schema';
 
-/** 디자인 토큰 값 — PDF 전용 하드코딩 허용 지점(위 주석 참고). */
+/** 디자인 토큰 값(`globals.css`의 `--color-*`와 동일) — PDF 전용 하드코딩 허용 지점(위 주석 참고). */
 const PDF_COLORS = {
     text: '#191f28',
     textSecondary: '#4e5968',
     accent: '#2563eb',
+    accentSoft: '#eef4ff',
     border: '#e5e8eb',
 } as const;
 
@@ -27,7 +29,7 @@ const styles = StyleSheet.create({
     title: { fontSize: 18, fontWeight: 700, marginBottom: 4 },
     meta: { fontSize: 9, color: PDF_COLORS.textSecondary },
     badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
-    badge: { fontSize: 8, color: PDF_COLORS.accent, backgroundColor: '#eef2ff', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 8 },
+    badge: { fontSize: 8, color: PDF_COLORS.accent, backgroundColor: PDF_COLORS.accentSoft, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 8 },
     summary: { fontSize: 10, color: PDF_COLORS.textSecondary, marginBottom: 14, lineHeight: 1.5 },
     section: { marginBottom: 12 },
     sectionTitle: { fontSize: 12, fontWeight: 700, marginBottom: 6 },
@@ -44,12 +46,6 @@ const styles = StyleSheet.create({
         fontSize: 8, color: PDF_COLORS.textSecondary, borderTop: `1px solid ${PDF_COLORS.border}`, paddingTop: 6,
     },
 });
-
-/** meta.dataUsed에 따른 데이터 배지 라벨 — `ReportView.tsx`의 동명 함수와 동일 규칙. */
-function dataBadgeLabels(report: PublicReport): string[] {
-    const labels = report.meta.dataUsed.map(d => (d === 'work24' ? '고용24 반영' : '웹 검색 반영'));
-    return labels.length > 0 ? labels : ['AI 지식 기반'];
-}
 
 function Header({ report }: { report: PublicReport }) {
     const createdDate = report.createdAt.slice(0, 10);
