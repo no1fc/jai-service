@@ -122,10 +122,20 @@ npm run start
 
 ### 리드 1년 경과 파기
 
-`leads`는 신청일로부터 1년 보관 후 파기한다 (`created_at`은 UTC 저장, 아래는 UTC 기준 수동 SQL — 자동 배치는 `docs/ISSUES.md`의 JAI-01 참고).
+`leads`는 신청일로부터 1년 보관 후 파기한다 (`created_at`은 UTC 저장).
+
+애플리케이션이 `insertLead`/`getLeads` 호출 시 24시간에 한 번 자동으로 파기한다(`src/lib/leads.ts`의 `maybePurgeExpiredLeads`, 실패해도 요청 흐름을 막지 않고 다음 기회에 재시도). 트래픽이 없는 날을 대비해 `scripts/purge-expired-leads.sql`(리드 1년 + 관리자 접속기록 2년 삭제)을 서버 cron 또는 SQL Server Agent 작업으로 매일 03:00에 등록한다.
+
+```bash
+# 서버 cron 예시 (매일 03:00)
+0 3 * * * sqlcmd -S <서버> -d <DB> -i /opt/NESSChatBot/next-app/scripts/purge-expired-leads.sql
+```
+
+직접 실행이 필요하면 아래 SQL을 수동으로 실행해도 된다(UTC 기준).
 
 ```sql
 DELETE FROM leads WHERE created_at < DATEADD(year, -1, SYSUTCDATETIME());
+DELETE FROM admin_access_logs WHERE created_at < DATEADD(year, -2, SYSUTCDATETIME());
 ```
 
 ---
