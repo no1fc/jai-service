@@ -110,6 +110,23 @@ export type LeadInput = z.infer<typeof leadSchema>;
 export const updateLeadStatusSchema = z.object({ status: z.enum(LEAD_STATUSES) });
 
 // ==========================================
+// Q&A 봇
+// ==========================================
+
+export const askRequestSchema = z.object({
+    messages: z.array(z.object({
+        role: z.enum(['user', 'model']),
+        text: z.string().trim().min(1).max(500, '질문은 500자 이내로 입력해주세요.'),
+    })).min(1).max(30)
+        .refine(m => m[m.length - 1].role === 'user', '마지막 메시지는 질문이어야 합니다.'),
+});
+
+export const askAnswerSchema = z.object({
+    answer: z.string().min(1),
+    suggestDiagnosis: z.boolean().default(false),
+});
+
+// ==========================================
 // 유틸리티
 // ==========================================
 
