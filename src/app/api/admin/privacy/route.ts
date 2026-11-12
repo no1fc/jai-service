@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { getSetting, updateSetting } from '@/lib/db';
+import { getSetting, updateSettings } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { DEFAULT_PRIVACY_POLICY } from '@/lib/privacy/policy';
 
@@ -22,7 +23,8 @@ export async function GET() {
             updatedAt: updatedAt || null,
             isDefault: !policy,
         });
-    } catch {
+    } catch (error) {
+        logger.error('/api/admin/privacy 조회 오류:', error);
         return apiError('개인정보처리방침을 불러오는데 실패했습니다.');
     }
 }
@@ -44,16 +46,17 @@ export async function PUT(req: NextRequest) {
         }
 
         const updatedAt = new Date().toISOString();
-        const [policySaved, dateSaved] = await Promise.all([
-            updateSetting('privacy_policy', parsed.data.policy),
-            updateSetting('privacy_policy_updated_at', updatedAt),
-        ]);
-
-        if (!policySaved || !dateSaved) {
+        // 본문과 수정일은 함께 바뀌어야 하므로 하나의 트랜잭션으로 저장한다
+        const saved = await updateSettings({
+            privacy_policy: parsed.data.policy,
+            privacy_policy_updated_at: updatedAt,
+        });
+        if (!saved) {
             return apiError('저장 중 오류가 발생했습니다.');
         }
         return apiSuccess({ updatedAt }, '개인정보처리방침이 저장되었습니다.');
-    } catch {
+    } catch (error) {
+        logger.error('/api/admin/privacy 오류:', error);
         return apiError('서버 내부 오류가 발생했습니다.');
     }
 }

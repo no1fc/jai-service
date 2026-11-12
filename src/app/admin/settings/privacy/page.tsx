@@ -87,7 +87,7 @@ export default function PrivacySettingsPage() {
                     공개 페이지(/privacy)에 노출되는 본문을 편집합니다. 형식: <code>## 제목</code> / <code>### 소제목</code> / <code>- 목록</code> / 빈 줄 = 문단 구분.
                 </p>
                 {updatedAt && (
-                    <p className="text-[var(--color-text-muted)] text-sm mt-1">최종 수정일: {updatedAt}</p>
+                    <p className="text-[var(--color-text-muted)] text-sm mt-1">최종 수정일: {new Date(updatedAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
                 )}
             </div>
 
@@ -140,7 +140,7 @@ export default function PrivacySettingsPage() {
                             <button
                                 type="button"
                                 onClick={handleSave}
-                                disabled={isLoading || isSaving}
+                                disabled={isLoading || isSaving || isOverLimit}
                                 className="min-h-11 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:bg-[var(--color-accent)]/50 disabled:cursor-not-allowed rounded-[4px] transition-colors"
                             >
                                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16} />}

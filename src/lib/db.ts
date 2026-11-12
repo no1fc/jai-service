@@ -401,21 +401,42 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     }, {});
 }
 
+const MERGE_SETTING_SQL = `
+    MERGE system_settings AS target
+    USING (SELECT @key AS [key], @value AS value) AS source
+    ON target.[key] = source.[key]
+    WHEN MATCHED THEN
+        UPDATE SET value = source.value, updated_at = GETDATE()
+    WHEN NOT MATCHED THEN
+        INSERT ([key], value, updated_at) VALUES (source.[key], source.value, GETDATE());
+`;
+
 export async function updateSetting(key: string, value: string): Promise<boolean> {
+    return updateSettings({ [key]: value });
+}
+
+/**
+ * 여러 설정을 하나의 트랜잭션으로 저장한다. 하나라도 실패하면 전부 롤백한다.
+ */
+export async function updateSettings(entries: Record<string, string>): Promise<boolean> {
     const pool = await getPool();
-    const result = await pool.request()
-        .input('key', sql.NVarChar(255), key)
-        .input('value', sql.NVarChar(sql.MAX), value)
-        .query(`
-            MERGE system_settings AS target
-            USING (SELECT @key AS [key], @value AS value) AS source
-            ON target.[key] = source.[key]
-            WHEN MATCHED THEN
-                UPDATE SET value = source.value, updated_at = GETDATE()
-            WHEN NOT MATCHED THEN
-                INSERT ([key], value, updated_at) VALUES (source.[key], source.value, GETDATE());
-        `);
-    return (result.rowsAffected[0] ?? 0) > 0;
+    const transaction = new Transaction(pool);
+    await transaction.begin();
+    try {
+        for (const [key, value] of Object.entries(entries)) {
+            const result = await new Request(transaction)
+                .input('key', sql.NVarChar(255), key)
+                .input('value', sql.NVarChar(sql.MAX), value)
+                .query(MERGE_SETTING_SQL);
+            if ((result.rowsAffected[0] ?? 0) === 0) throw new Error(`설정 저장 실패: ${key}`);
+        }
+        await transaction.commit();
+        return true;
+    } catch (error) {
+        await transaction.rollback();
+        logger.error('설정 저장 트랜잭션 실패:', error);
+        return false;
+    }
 }
 
 // ==========================================
