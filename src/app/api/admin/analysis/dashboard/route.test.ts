@@ -5,11 +5,11 @@ vi.mock('@/lib/auth', () => ({ requireRole: vi.fn() }));
 vi.mock('@/lib/analysis/reports');
 
 import { requireRole } from '@/lib/auth';
-import { getDashboard, listReports } from '@/lib/analysis/reports';
+import { getDashboard } from '@/lib/analysis/reports';
 import { GET } from './route';
 
 const stats = {
-    today: 1, last7d: 5, cacheHitRate: 0.5,
+    today: 1, last7d: 5, cacheHitRate: 0.5, totalReports: 137,
     recent: [], topJobs: [], topIndustries: [],
 };
 
@@ -25,14 +25,13 @@ describe('GET /api/admin/analysis/dashboard', () => {
         expect(getDashboard).not.toHaveBeenCalled();
     });
 
-    it('인증되면 대시보드 통계와 전체 리포트 수를 반환한다', async () => {
+    it('인증되면 대시보드 통계(전체 리포트 수 포함)를 반환한다', async () => {
         vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
         vi.mocked(getDashboard).mockResolvedValue(stats as never);
-        vi.mocked(listReports).mockResolvedValue([{ id: 1 } as never, { id: 2 } as never]);
 
         const res = await GET();
         expect(res.status).toBe(200);
         const json = await res.json();
-        expect(json).toEqual({ success: true, stats, totalReports: 2 });
+        expect(json).toEqual({ success: true, stats });
     });
 });

@@ -66,6 +66,7 @@ export interface DashboardStats {
     today: number;
     last7d: number;
     cacheHitRate: number;
+    totalReports: number;
     recent: DashboardRecentItem[];
     topJobs: DashboardTopRow[];
     topIndustries: DashboardTopRow[];
@@ -95,6 +96,7 @@ export const DASHBOARD_TOP_SQL = `SELECT TOP 10 r.type, r.keyword_norm AS keywor
 const DASHBOARD_COUNT_SQL = (windowClause: string) => `SELECT COUNT(*) AS c FROM analysis_requests WHERE cache_hit = 0 AND created_at > ${windowClause}`;
 const DASHBOARD_HIT_RATE_SQL = `SELECT COUNT(*) AS total, SUM(CASE WHEN cache_hit = 1 THEN 1 ELSE 0 END) AS hits
     FROM analysis_requests WHERE created_at > DATEADD(day, -30, SYSUTCDATETIME())`;
+export const DASHBOARD_TOTAL_REPORTS_SQL = 'SELECT COUNT(*) AS c FROM analysis_reports';
 // 최근 분석은 "요청" 기준(캐시 적중 포함)으로 집계한다 — 설계서 3.1절. IP는 analysis_requests에 저장하지 않으므로 선택하지 않는다.
 const DASHBOARD_RECENT_SQL = `SELECT TOP 20 r.public_id, r.type, r.keyword, q.actor, q.created_at
     FROM analysis_requests q JOIN analysis_reports r ON r.id = q.report_id
@@ -230,13 +232,14 @@ function toRecentItem(row: { public_id: string; type: string; keyword: string; a
     };
 }
 
-/** 관리자 대시보드 통계 — 오늘/최근 7일 생성 수, 최근 30일 캐시 적중률, 최근 20건, 직무/산업 상위 10개(30일). */
+/** 관리자 대시보드 통계 — 오늘/최근 7일 생성 수, 최근 30일 캐시 적중률, 전체 리포트 수, 최근 20건, 직무/산업 상위 10개(30일). */
 export async function getDashboard(): Promise<DashboardStats> {
     const pool = await getPool();
-    const [today, last7d, hitRate, recent, topJobs, topIndustries] = await Promise.all([
+    const [today, last7d, hitRate, totalReports, recent, topJobs, topIndustries] = await Promise.all([
         pool.request().query(DASHBOARD_COUNT_SQL('DATEADD(hour, -24, SYSUTCDATETIME())')),
         pool.request().query(DASHBOARD_COUNT_SQL('DATEADD(day, -7, SYSUTCDATETIME())')),
         pool.request().query(DASHBOARD_HIT_RATE_SQL),
+        pool.request().query(DASHBOARD_TOTAL_REPORTS_SQL),
         pool.request().query(DASHBOARD_RECENT_SQL),
         dashboardTop(pool, 'job'),
         dashboardTop(pool, 'industry'),
@@ -247,6 +250,7 @@ export async function getDashboard(): Promise<DashboardStats> {
         today: today.recordset[0]?.c ?? 0,
         last7d: last7d.recordset[0]?.c ?? 0,
         cacheHitRate: total > 0 ? (hitRow.hits ?? 0) / total : 0,
+        totalReports: totalReports.recordset[0]?.c ?? 0,
         recent: (recent.recordset as Array<{ public_id: string; type: string; keyword: string; actor: string; created_at: Date }>).map(toRecentItem),
         topJobs,
         topIndustries,

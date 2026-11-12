@@ -235,6 +235,7 @@ describe('getDashboard', () => {
             [{ c: 4 }],
             [{ c: 10 }],
             [{ total: 20, hits: 5 }],
+            [{ c: 137 }],
             recentRows,
             [{ type: 'job', keyword: '백엔드', cnt: 3 }],
             [{ type: 'industry', keyword: '핀테크', cnt: 2 }],
@@ -244,22 +245,26 @@ describe('getDashboard', () => {
         expect(stats.today).toBe(4);
         expect(stats.last7d).toBe(10);
         expect(stats.cacheHitRate).toBeCloseTo(0.25);
+        expect(stats.totalReports).toBe(137);
         expect(stats.recent).toEqual([{ publicId: 'p1', type: 'job', keyword: '백엔드', actor: 'user', requestedAt }]);
         expect(stats.topJobs).toEqual([{ type: 'job', keyword: '백엔드', cnt: 3 }]);
         expect(stats.topIndustries).toEqual([{ type: 'industry', keyword: '핀테크', cnt: 2 }]);
+        // totalReports는 analysis_reports 전체 건수를 그대로 센다(TOP 500 상한인 listReports와 무관).
+        expect(log[3].sql).toBe('SELECT COUNT(*) AS c FROM analysis_reports');
         // 최근 분석은 analysis_requests(요청 시각) 기준으로 조인한다 — report 생성 시각이 아니다.
-        expect(log[3].sql).toContain('FROM analysis_requests q JOIN analysis_reports r');
-        expect(log[3].sql).toContain('ORDER BY q.created_at DESC');
+        expect(log[4].sql).toContain('FROM analysis_requests q JOIN analysis_reports r');
+        expect(log[4].sql).toContain('ORDER BY q.created_at DESC');
         // IP는 selecting하지 않는다.
-        expect(log[3].sql).not.toMatch(/\bip\b/i);
+        expect(log[4].sql).not.toMatch(/\bip\b/i);
     });
-    it('요청이 전혀 없으면(빈 결과) 캐시 적중률 0, 최근 분석 빈 배열을 반환한다', async () => {
+    it('요청이 전혀 없으면(빈 결과) 캐시 적중률 0, 전체 리포트 수 0, 최근 분석 빈 배열을 반환한다', async () => {
         const { pool } = makeFakePool([
-            [{ c: 0 }], [{ c: 0 }], [{ total: 0, hits: 0 }], [], [], [],
+            [{ c: 0 }], [{ c: 0 }], [{ total: 0, hits: 0 }], [{ c: 0 }], [], [], [],
         ]);
         vi.mocked(getPool).mockResolvedValue(pool);
         const stats = await getDashboard();
         expect(stats.cacheHitRate).toBe(0);
+        expect(stats.totalReports).toBe(0);
         expect(stats.recent).toEqual([]);
         expect(stats.topJobs).toEqual([]);
         expect(stats.topIndustries).toEqual([]);

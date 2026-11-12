@@ -46,14 +46,20 @@ describe('GET /api/admin/analysis/reports', () => {
         expect(listReports).not.toHaveBeenCalled();
     });
 
-    it('정상 조회 시 목록을 반환한다', async () => {
+    it('정상 조회 시 camelCase로 매핑된 목록을 반환한다', async () => {
         vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
-        vi.mocked(listReports).mockResolvedValue([{ id: 1 } as never]);
+        const createdAt = new Date('2026-01-01T00:00:00.000Z');
+        vi.mocked(listReports).mockResolvedValue([
+            { id: 1, public_id: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', created_at: createdAt, request_count: 3 },
+        ]);
         const res = await GET(getRequest('?type=job&q=PM'));
         expect(res.status).toBe(200);
         expect(listReports).toHaveBeenCalledWith({ type: 'job', q: 'PM' });
         const json = await res.json();
-        expect(json).toEqual({ success: true, reports: [{ id: 1 }] });
+        expect(json).toEqual({
+            success: true,
+            reports: [{ id: 1, publicId: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', createdAt: createdAt.toISOString(), requestCount: 3 }],
+        });
     });
 });
 

@@ -30,7 +30,17 @@ export async function GET(request: NextRequest) {
         if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
 
         const { listReports } = await import('@/lib/analysis/reports');
-        const reports = await listReports(parsed.data);
+        const rows = await listReports(parsed.data);
+        // 설계서 7.2절 camelCase 응답(공개 /api/analysis/library와 같은 매핑 방식).
+        const reports = rows.map(row => ({
+            id: row.id,
+            publicId: row.public_id,
+            type: row.type,
+            keyword: row.keyword,
+            scope: row.scope,
+            createdAt: row.created_at,
+            requestCount: row.request_count,
+        }));
         return apiSuccess({ reports });
     } catch (error) {
         logger.error('/api/admin/analysis/reports GET 오류:', error);

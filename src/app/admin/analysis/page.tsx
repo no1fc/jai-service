@@ -83,17 +83,12 @@ function RecentTable({ rows }: { rows: DashboardStats['recent'] }) {
 
 export default function AdminAnalysisDashboardPage() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [totalReports, setTotalReports] = useState(0);
     const [error, setError] = useState('');
 
     useEffect(() => {
         fetch('/api/admin/analysis/dashboard')
             .then(r => r.json())
-            .then(d => {
-                if (!d.success) return setError(d.error);
-                setStats(d.stats);
-                setTotalReports(d.totalReports);
-            })
+            .then(d => (d.success ? setStats(d.stats) : setError(d.error)))
             .catch(err => {
                 logger.error('대시보드 조회 실패:', err);
                 setError('대시보드를 불러오지 못했습니다.');
@@ -118,7 +113,7 @@ export default function AdminAnalysisDashboardPage() {
                         <StatCard title="오늘 생성" value={`${stats.today}건`} icon={<FileText size={20} className="text-[var(--color-accent)]" />} />
                         <StatCard title="7일 생성" value={`${stats.last7d}건`} icon={<TrendingUp size={20} className="text-[var(--color-accent)]" />} />
                         <StatCard title="캐시 적중률(30일)" value={`${Math.round(stats.cacheHitRate * 100)}%`} icon={<Percent size={20} className="text-[var(--color-accent)]" />} />
-                        <StatCard title="전체 리포트 수" value={`${totalReports}건`} icon={<Briefcase size={20} className="text-[var(--color-accent)]" />} />
+                        <StatCard title="전체 리포트 수" value={`${stats.totalReports}건`} icon={<Briefcase size={20} className="text-[var(--color-accent)]" />} />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
