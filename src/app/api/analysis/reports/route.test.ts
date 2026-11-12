@@ -3,9 +3,11 @@ import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/analysis/generate');
 vi.mock('@/lib/analysis/auth/user-session');
+vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: vi.fn(), getClientIp: vi.fn() }));
 
 import { generateAnalysis } from '@/lib/analysis/generate';
 import { actorFromRequest } from '@/lib/analysis/auth/user-session';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { POST } from './route';
 
 const validBody = { type: 'job', keyword: '핀테크 PM', scope: 'kr', includeCompetitors: false, includeTrends: false };
@@ -21,9 +23,18 @@ function postRequest(body: unknown) {
 beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(actorFromRequest).mockResolvedValue({ kind: 'anon' });
+    vi.mocked(getClientIp).mockReturnValue('1.1.1.1');
+    vi.mocked(checkRateLimit).mockReturnValue({ allowed: true, remaining: 9, resetAt: Date.now() + 1000 });
 });
 
 describe('POST /api/analysis/reports', () => {
+    it('rate limit에 걸리면 429를 반환하고 generateAnalysis를 호출하지 않는다', async () => {
+        vi.mocked(checkRateLimit).mockReturnValue({ allowed: false, remaining: 0, resetAt: Date.now() + 1000 });
+        const res = await POST(postRequest(validBody));
+        expect(res.status).toBe(429);
+        expect(generateAnalysis).not.toHaveBeenCalled();
+    });
+
     it('본문 JSON이 깨지면 400을 반환한다', async () => {
         const res = await POST(postRequest('{broken'));
         expect(res.status).toBe(400);

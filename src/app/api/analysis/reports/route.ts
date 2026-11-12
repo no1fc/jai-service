@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         const result = await generateAnalysis(parsed.data, await actorFromRequest(), ip);
         if (!result.ok) {
             const res = apiError(result.error, result.status);
-            if (result.retryAfterSec) res.headers.set('Retry-After', String(result.retryAfterSec));
+            if (result.retryAfterSec !== undefined) res.headers.set('Retry-After', String(result.retryAfterSec));
             return res;
         }
         return apiSuccess({ report: result.report, cached: result.cached }, undefined, result.cached ? 200 : 201);
