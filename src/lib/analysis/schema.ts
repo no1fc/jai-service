@@ -57,6 +57,7 @@ export type IndustryReport = z.infer<typeof industryReportSchema>;
 
 export const invalidKeywordSchema = z.object({ invalid: z.literal(true), reason: short });
 export const reportContentSchema = z.union([invalidKeywordSchema, jobReportSchema, industryReportSchema]);
+/** 저장·표시되는 리포트 본문. invalid 응답은 generate에서 400으로 걸러져 저장되지 않으므로 포함하지 않는다. */
 export type ReportContent = JobReport | IndustryReport;
 
 export interface Work24Summary { /* 설계서 3.1 */ total: number; sampled: number; topRegions: Array<{ region: string; count: number }>; salaryBands: Array<{ band: string; count: number }>; employmentTypes: Array<{ type: string; count: number }>; samples: Array<{ title: string; company: string; region: string; sal: string; closeDt: string; url: string }>; fetchedAt: string }
