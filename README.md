@@ -123,7 +123,7 @@ AI 직무·산업 분석(`/analysis`) 테이블은 `initSchema`가 자동 생성
 # 1) 분석 서비스 테이블 생성 (최초 1회)
 sqlcmd -S <서버> -d <DB> -i scripts/create-analysis-schema.sql
 
-# 2) 만료된 인증번호·오래된 캐시 등 정리 (운영은 cron 03:10 권장, 배포.md (l)항 참고)
+# 2) 만료된 인증번호(1일)·1년 미이용 계정 정리 (캐시된 리포트는 삭제하지 않음, 운영은 cron 03:10 권장, 배포.md (l)항 참고)
 sqlcmd -S <서버> -d <DB> -i scripts/purge-analysis-data.sql
 ```
 
