@@ -56,10 +56,21 @@ export function buildGeminiConfig(maxOutputTokens: number, options: { googleSear
         : { ...base, responseMimeType: 'application/json' as const };
 }
 
-/** 그라운딩 메타데이터에서 출처와 검색 제안 HTML을 뽑는다(없으면 빈 값). */
+const HTTP_URL_RE = /^https?:\/\//i;
+
+/** 그라운딩 메타데이터에서 출처와 검색 제안 HTML을 뽑는다(없으면 빈 값).
+ * http(s) 스킴이 아닌 URL은 제외하고, 같은 uri가 여러 번 나오면 먼저 나온 것만 남긴다
+ * (중복 uri가 React 리스트의 key로 쓰이면서 중복 key 오류가 나던 문제의 근본 수정). */
 export function extractGrounding(candidate: { groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>; searchEntryPoint?: { renderedContent?: string } } } | undefined) {
     const chunks = candidate?.groundingMetadata?.groundingChunks ?? [];
-    const sources = chunks.flatMap(c => c.web?.uri ? [{ uri: c.web.uri, title: c.web.title || c.web.uri }] : []);
+    const seen = new Set<string>();
+    const sources: Array<{ uri: string; title: string }> = [];
+    for (const c of chunks) {
+        const uri = c.web?.uri;
+        if (!uri || !HTTP_URL_RE.test(uri) || seen.has(uri)) continue;
+        seen.add(uri);
+        sources.push({ uri, title: c.web?.title || uri });
+    }
     return { sources, searchEntryPoint: candidate?.groundingMetadata?.searchEntryPoint?.renderedContent ?? null };
 }
 

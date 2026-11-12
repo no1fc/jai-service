@@ -40,12 +40,14 @@ describe('buildGeminiConfig', () => {
     it('googleSearch가 true면 responseMimeType이 없고 tools가 있다', () => {
         const config = buildGeminiConfig(2048, { googleSearch: true });
         expect(config).not.toHaveProperty('responseMimeType');
+        if (!('tools' in config)) throw new Error('tools가 있어야 한다');
         expect(config.tools).toEqual([{ googleSearch: {} }]);
     });
     it('기본 호출이면 responseMimeType이 application/json이고 tools가 없다', () => {
         const config = buildGeminiConfig(2048);
-        expect(config.responseMimeType).toBe('application/json');
         expect(config).not.toHaveProperty('tools');
+        if (!('responseMimeType' in config)) throw new Error('responseMimeType이 있어야 한다');
+        expect(config.responseMimeType).toBe('application/json');
     });
 });
 
@@ -56,5 +58,13 @@ describe('extractGrounding', () => {
     });
     it('메타데이터가 없으면 빈 값', () => {
         expect(extractGrounding(undefined)).toEqual({ sources: [], searchEntryPoint: null });
+    });
+    it('http(s)가 아닌 uri는 제외한다', () => {
+        const c = { groundingMetadata: { groundingChunks: [{ web: { uri: 'javascript:alert(1)', title: 'bad' } }, { web: { uri: 'https://ok' } }] } };
+        expect(extractGrounding(c).sources).toEqual([{ uri: 'https://ok', title: 'https://ok' }]);
+    });
+    it('같은 uri가 여러 번 나오면 먼저 나온 것만 남긴다', () => {
+        const c = { groundingMetadata: { groundingChunks: [{ web: { uri: 'https://a', title: 'A1' } }, { web: { uri: 'https://a', title: 'A2' } }] } };
+        expect(extractGrounding(c).sources).toEqual([{ uri: 'https://a', title: 'A1' }]);
     });
 });

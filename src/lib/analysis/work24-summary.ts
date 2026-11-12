@@ -4,6 +4,7 @@ import type { Work24Posting } from './work24';
 
 const SAMPLE_COUNT = 10;
 const TOP_N = 5;
+const HTTP_URL_RE = /^https?:\/\//i;
 const EMP_TYPE_LABEL: Record<string, string> = {
     '10': '기간의 정함이 없는 근로계약',
     '11': '기간의 정함이 있는 근로계약',
@@ -58,8 +59,12 @@ export function summarizeWork24(items: Work24Posting[], total: number, fetchedAt
     });
     const employmentTypes = countBy(items, i => EMP_TYPE_LABEL[i.empTpCd] ?? '기타')
         .map(([type, count]) => ({ type, count }));
-    const samples = items.slice(0, SAMPLE_COUNT).map(i => ({
-        title: i.title, company: i.company, region: i.region, sal: i.sal, closeDt: i.closeDt, url: i.wantedInfoUrl,
-    }));
+    // wantedInfoUrl은 외부 API 응답이라 http(s) 스킴이 아닌 값은 샘플에서 제외한다.
+    const samples = items
+        .filter(i => HTTP_URL_RE.test(i.wantedInfoUrl))
+        .slice(0, SAMPLE_COUNT)
+        .map(i => ({
+            title: i.title, company: i.company, region: i.region, sal: i.sal, closeDt: i.closeDt, url: i.wantedInfoUrl,
+        }));
     return { total, sampled: items.length, topRegions, salaryBands, employmentTypes, samples, fetchedAt };
 }

@@ -53,8 +53,18 @@ export async function getUserById(id: number): Promise<AppUser | null> {
     return (r.recordset[0] as AppUser | undefined) ?? null;
 }
 
+// 탈퇴 시 이용 기록은 남기고 회원 식별만 끊기 위해, app_users 삭제 전에 analysis_requests.user_id를
+// 먼저 NULL로 분리한다(이 테이블엔 FK가 없어 CASCADE로 자동 정리되지 않음). analysis_library는
+// app_users FK에 ON DELETE CASCADE가 걸려 있어(create-analysis-schema.sql) 자동 삭제된다.
+// 한 배치(단일 쿼리 호출)로 보내 왕복을 늘리지 않는다.
+export const DELETE_USER_SQL = `
+    UPDATE analysis_requests SET user_id = NULL WHERE user_id = @id;
+    DELETE FROM app_users WHERE id = @id;
+`;
+
 export async function deleteUser(id: number): Promise<boolean> {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id).query('DELETE FROM app_users WHERE id = @id');
-    return (result.rowsAffected[0] ?? 0) > 0;
+    const result = await pool.request().input('id', sql.Int, id).query(DELETE_USER_SQL);
+    // rowsAffected는 배치 내 각 문장 순서대로 쌍이 쌓인다: [0]=UPDATE, [1]=DELETE.
+    return (result.rowsAffected[1] ?? 0) > 0;
 }

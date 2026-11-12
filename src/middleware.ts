@@ -22,10 +22,12 @@ export async function middleware(request: NextRequest) {
 
     // 5. 로그인 경로 접근 시 리다이렉션 로직
     if (isLoginRoute) {
-        // 이미 로그인된 상태(토큰 유효)라면 대시보드로 이동
+        // 이미 로그인된 상태(토큰 유효)이고 role이 admin/superadmin일 때만 대시보드로 이동
+        // (user_session 토큰이 admin_session 쿠키 이름으로 잘못 들어온 경우 로그인 페이지를 계속 보여준다).
         if (token) {
             const payload = await verifyToken(token);
-            if (payload) {
+            const loginRole = (payload?.role as string) || 'admin';
+            if (payload && (loginRole === 'admin' || loginRole === 'superadmin')) {
                 return NextResponse.redirect(new URL('/admin', request.url));
             }
         }

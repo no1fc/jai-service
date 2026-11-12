@@ -17,7 +17,7 @@ describe('UPSERT_USER_SQL', () => {
 interface BoundInput { name: string; type?: unknown; value: unknown }
 interface RequestLog { inputs: BoundInput[]; sql: string }
 
-function makeFakePool(resultsQueue: unknown[][] = []) {
+function makeFakePool(resultsQueue: unknown[][] = [], rowsAffectedQueue: number[][] = []) {
     const log: RequestLog[] = [];
     let step = 0;
     const request = () => {
@@ -33,7 +33,8 @@ function makeFakePool(resultsQueue: unknown[][] = []) {
             async query(text: string) {
                 entry.sql = text;
                 const recordset = resultsQueue[idx] ?? [];
-                return { recordset, rowsAffected: [recordset.length] };
+                const rowsAffected = rowsAffectedQueue[idx] ?? [recordset.length];
+                return { recordset, rowsAffected };
             },
         };
         return req;
@@ -82,13 +83,18 @@ describe('getUserById', () => {
 });
 
 describe('deleteUser', () => {
-    it('삭제된 행이 있으면 true, 없으면 false를 반환한다', async () => {
-        const { pool: poolHit } = makeFakePool([[{}]]);
-        vi.mocked(getPool).mockResolvedValue(poolHit);
+    it('analysis_requests.user_id를 먼저 NULL로 분리한 뒤 app_users를 삭제한다(한 배치)', async () => {
+        const { pool, log } = makeFakePool([[]], [[1, 1]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
         expect(await deleteUser(1)).toBe(true);
-
-        const { pool: poolMiss } = makeFakePool([[]]);
-        vi.mocked(getPool).mockResolvedValue(poolMiss);
+        const sql = log[0].sql;
+        expect(sql).toContain('UPDATE analysis_requests SET user_id = NULL WHERE user_id = @id');
+        expect(sql).toContain('DELETE FROM app_users WHERE id = @id');
+        expect(sql.indexOf('UPDATE analysis_requests')).toBeLessThan(sql.indexOf('DELETE FROM app_users'));
+    });
+    it('app_users 삭제 행이 없으면 false를 반환한다', async () => {
+        const { pool } = makeFakePool([[]], [[0, 0]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
         expect(await deleteUser(2)).toBe(false);
     });
 });

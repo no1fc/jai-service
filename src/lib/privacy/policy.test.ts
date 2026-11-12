@@ -59,6 +59,11 @@ describe('parsePolicy', () => {
         expect(DEFAULT_PRIVACY_POLICY).toContain('만 14세');
         expect(DEFAULT_PRIVACY_POLICY).toContain('매일 자동');
     });
+
+    it('DEFAULT_PRIVACY_POLICY는 로그인 이용자의 서비스 이용 기록(분석 요청 일시·키워드) 수집 항목을 포함한다', () => {
+        expect(DEFAULT_PRIVACY_POLICY).toContain('서비스 이용 기록');
+        expect(DEFAULT_PRIVACY_POLICY).toContain('분석 요청 일시·키워드');
+    });
 });
 
 describe('hasPlaceholder', () => {
