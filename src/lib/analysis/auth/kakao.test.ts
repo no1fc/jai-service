@@ -52,6 +52,20 @@ describe('safeReturnTo', () => {
         expect(safeReturnTo('/analysis/../admin')).toBe('/analysis/library'); // 경로 탈출
         expect(safeReturnTo('/analysis/%2e%2e/admin')).toBe('/analysis/library'); // 인코딩된 경로 탈출
     });
+
+    // 재리뷰 지적: 디코드를 한 번만 하면 %252e%252e(이중 인코딩)가 검사를 통과해
+    // 이후 new URL()에서 /admin으로 정규화될 수 있다. URL 정규화 방식으로 차단한다.
+    it('이중 인코딩된 경로 탈출(%252e%252e)을 거부한다', () => {
+        expect(safeReturnTo('/analysis/%252e%252e/admin')).toBe('/analysis/library');
+    });
+
+    it('%3F처럼 의미가 바뀌는 인코딩은 디코드하지 않고 원형을 유지한다', () => {
+        expect(safeReturnTo('/analysis/r/a%3Fb')).toBe('/analysis/r/a%3Fb');
+    });
+
+    it('쿼리·해시가 있으면 그대로 유지한다', () => {
+        expect(safeReturnTo('/analysis/r/x?tab=1#top')).toBe('/analysis/r/x?tab=1#top');
+    });
 });
 
 describe('exchangeKakaoCode', () => {

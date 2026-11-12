@@ -36,21 +36,39 @@ export async function buildKakaoAuthorizeUrl({ state }: { state: string }): Prom
 }
 
 /**
- * `/analysis`로 시작하는 상대 경로만 허용한다(오픈 리다이렉트·경로 탈출 방지). 그 외는 기본 경로로 대체한다.
- * 퍼센트 인코딩을 먼저 디코드해 `%2e%2e`, `%2F%2F` 같은 인코딩 우회까지 같은 규칙으로 검사한다.
+ * `/analysis`로 시작하는 상대 경로만 허용한다(오픈 리다이렉트·경로 탈출·이중 인코딩 우회 방지).
+ * 문자열 매칭(한 번만 디코드) 대신 WHATWG `URL`로 정규화해 검증한다 — `%2e%2e`(인코딩된 "..")는
+ * `URL`이 실제 브라우저/Node의 리다이렉트 처리와 동일한 규칙으로 `..`와 똑같이 접기 때문에,
+ * 문자열 비교보다 안전하다. 통과하면 원래 인코딩을 보존한 `pathname + search + hash`를 반환한다
+ * (예: `%3F`를 `?`로 디코드해 의미를 바꾸지 않는다).
  */
 export function safeReturnTo(raw: string | null): string {
     if (!raw) return DEFAULT_RETURN;
+    // `/\`는 특수 스킴에서 `/`와 동일하게 취급돼 `//evil.com`과 같은 효과를 내므로 시작부터 차단한다.
+    // 백슬래시는 경로 중간에 있어도 URL 파서가 `/`로 바꿔버려 의도를 알 수 없으므로 전체를 거부한다.
+    if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\') || raw.includes('\\')) return DEFAULT_RETURN;
+    if (/[\s\x00-\x1f\x7f]/.test(raw)) return DEFAULT_RETURN;
 
-    let decoded: string;
+    let u: URL;
     try {
-        decoded = decodeURIComponent(raw);
+        u = new URL(raw, 'http://x');
     } catch {
         return DEFAULT_RETURN;
     }
+    if (u.origin !== 'http://x') return DEFAULT_RETURN;
+    if (u.pathname !== '/analysis' && !u.pathname.startsWith('/analysis/')) return DEFAULT_RETURN;
 
-    const isSafe = /^\/analysis(\/[^\s\\]*)?$/.test(decoded) && !decoded.includes('..') && !decoded.includes('\\');
-    return isSafe ? decoded : DEFAULT_RETURN;
+    // 이중 인코딩 잔재 거부: `%252e%252e`는 1차 정규화로는 접히지 않고 그대로 남으므로,
+    // pathname을 한 번 더 디코드해 `%2e`/`%5c`가 남아 있으면(=2단 인코딩이었으면) 거부한다.
+    let decodedOnceMore: string;
+    try {
+        decodedOnceMore = decodeURIComponent(u.pathname);
+    } catch {
+        return DEFAULT_RETURN;
+    }
+    if (/%2e|%5c/i.test(decodedOnceMore)) return DEFAULT_RETURN;
+
+    return u.pathname + u.search + u.hash;
 }
 
 /** 인가 코드를 액세스 토큰으로 교환한다. */
