@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LEAD_SOURCE_LABEL, LEAD_STATUS_LABEL, type Lead, type LeadStatus } from '@/types/lead';
-import type { CounselorReport } from '@/lib/report/prompt';
+import { counselorReportSchema, type CounselorReport } from '@/lib/report/prompt';
 
 const STATUSES = Object.keys(LEAD_STATUS_LABEL) as LeadStatus[];
 const card = 'rounded-[var(--radius-card)] border border-border bg-bg-elevated p-5';
@@ -29,8 +29,9 @@ export default function AdminLeadDetailPage({ params }: { params: Promise<{ id: 
         fetch(`/api/admin/leads/${id}`).then(r => r.json()).then(d => {
             if (!d.success) return setError(d.error);
             setLead(d.lead);
-            const cachedReport = tryParseJSON<CounselorReport>(d.lead.report);
-            if (cachedReport) setReport(cachedReport);
+            // 캐시된 리포트는 스키마까지 검증해 손상된 데이터로 화면이 깨지지 않게 한다
+            const cachedReport = counselorReportSchema.safeParse(tryParseJSON<unknown>(d.lead.report));
+            if (cachedReport.success) setReport(cachedReport.data);
         }).catch(() => setError('불러오지 못했습니다.'));
     }, [id]);
 
@@ -52,7 +53,10 @@ export default function AdminLeadDetailPage({ params }: { params: Promise<{ id: 
         const d = await (await fetch(`/api/admin/leads/${id}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
         })).json();
-        if (d.success && lead) setLead({ ...lead, status });
+        if (d.success && lead) {
+            setLead({ ...lead, status });
+            setError('');
+        }
         else setError(d.error || '상태 변경 실패');
     }
 
