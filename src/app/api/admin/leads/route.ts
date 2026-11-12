@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         const leads = (await getLeads(status)).map(({ payload: _p, report, ...l }) => ({
             ...l, phone: maskPhone(l.phone), hasReport: report !== null,
         }));
-        await logAdminAccess({ adminUsername: auth.id, action: 'lead.list', targetType: 'lead', ip: getClientIp(request) });
+        void logAdminAccess({ adminUsername: auth.id, action: 'lead.list', targetType: 'lead', ip: getClientIp(request) });
         return apiSuccess({ leads });
     } catch {
         return apiError('서버 에러가 발생했습니다.');

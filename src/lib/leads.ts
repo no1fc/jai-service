@@ -12,6 +12,7 @@ import type { Lead, LeadStatus } from '@/types/lead';
 export const PURGE_EXPIRED_LEADS_SQL = 'DELETE FROM leads WHERE created_at < DATEADD(year, -1, SYSUTCDATETIME())';
 
 const PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24시간
+const PURGE_RETRY_DELAY_MS = 60 * 60 * 1000; // 실패 시 재시도 간격 1시간
 let lastPurgeAt = 0;
 
 export async function insertLead(input: LeadInput): Promise<number> {
@@ -86,7 +87,8 @@ export async function maybePurgeExpiredLeads(): Promise<void> {
     try {
         await purgeExpiredLeads();
     } catch (error) {
-        lastPurgeAt = 0; // 실패 시 다음 호출에서 재시도
+        // 실패 시 1시간 뒤 재시도 (DB 장애 중 매 요청마다 DELETE를 반복하지 않도록)
+        lastPurgeAt = Date.now() - PURGE_INTERVAL_MS + PURGE_RETRY_DELAY_MS;
         logger.error('[리드 파기] 자동 파기 실패:', error);
     }
 }

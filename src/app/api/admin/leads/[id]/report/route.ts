@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         const lead = await getLeadById(id);
         if (!lead) return apiError('신청 건을 찾을 수 없습니다.', 404);
 
-        await logAdminAccess({ adminUsername: auth.id, action: 'lead.report', targetType: 'lead', targetId: id, ip: getClientIp(req) });
+        void logAdminAccess({ adminUsername: auth.id, action: 'lead.report', targetType: 'lead', targetId: id, ip: getClientIp(req) });
 
         const refresh = req.nextUrl.searchParams.get('refresh') === '1';
         if (lead.report && !refresh) {
