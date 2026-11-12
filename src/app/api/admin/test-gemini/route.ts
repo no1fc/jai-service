@@ -1,7 +1,8 @@
 import { type NextRequest } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { getSetting } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { DEFAULT_CHAT_MODEL, resolveGeminiModel } from '@/lib/gemini-models';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,12 @@ export async function POST(request: NextRequest) {
             return apiError('API Key가 제공되지 않았습니다.', 400);
         }
 
-        const configuredModel = await getSetting('gemini_model_name') || 'gemini-2.5-flash';
+        const stored = await getSetting('gemini_model_name');
+        const { id: configuredModel } = resolveGeminiModel(stored, DEFAULT_CHAT_MODEL);
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: configuredModel });
-
-        const result = await model.generateContent('ping');
-        const text = result.response.text();
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({ model: configuredModel, contents: 'ping' });
+        const text = response.text;
 
         if (text) {
             return apiSuccess(null, 'Gemini API 연결 성공');
