@@ -3,7 +3,7 @@ import { leadSchema, updatePrivacyPolicySchema } from './validations';
 
 const valid = {
     name: '홍길동', phone: '010-1234-5678', region: '서울특별시', desiredJob: '웹 개발',
-    source: 'diagnosis', payload: { a: 1 }, consent: true,
+    source: 'diagnosis', payload: { a: 1 }, consent: true, ageConfirmed: true,
 };
 
 describe('leadSchema', () => {
@@ -14,6 +14,16 @@ describe('leadSchema', () => {
     });
     it('동의하지 않으면 거부한다', () => {
         expect(leadSchema.safeParse({ ...valid, consent: false }).success).toBe(false);
+    });
+    it('만 14세 확인이 없으면 거부한다', () => {
+        const { name, phone, region, desiredJob, source, payload, consent } = valid;
+        expect(leadSchema.safeParse({ name, phone, region, desiredJob, source, payload, consent }).success).toBe(false);
+    });
+    it('만 14세 확인이 false면 거부한다', () => {
+        expect(leadSchema.safeParse({ ...valid, ageConfirmed: false }).success).toBe(false);
+    });
+    it('만 14세 확인이 true면 통과한다', () => {
+        expect(leadSchema.safeParse({ ...valid, ageConfirmed: true }).success).toBe(true);
     });
     it('휴대폰 형식이 아니면 거부한다', () => {
         expect(leadSchema.safeParse({ ...valid, phone: '02-123-4567' }).success).toBe(false);

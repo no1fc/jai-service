@@ -106,6 +106,8 @@ export const leadSchema = z.object({
     payload: z.record(z.string(), z.unknown()).default({})
         .refine(p => JSON.stringify(p).length <= MAX_PAYLOAD_CHARS, '전송 데이터가 너무 큽니다.'),
     consent: z.literal(true, { message: '개인정보 수집·이용에 동의해주세요.' }),
+    // 저장하지는 않는다(insertLead는 기존 필드만 사용) — 신청 가능 연령(만 14세) 확인용 검증 전용 필드.
+    ageConfirmed: z.literal(true, { message: '만 14세 이상만 신청할 수 있습니다.' }),
 });
 
 export type LeadInput = z.infer<typeof leadSchema>;

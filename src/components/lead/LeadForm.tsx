@@ -33,6 +33,7 @@ export default function LeadForm({ source, payload, defaultDesiredJob = '', defa
                     phone: form.get('phone'),
                     region: form.get('region'),
                     desiredJob: form.get('desiredJob'),
+                    ageConfirmed: form.get('ageConfirmed') === 'on',
                     consent: form.get('consent') === 'on',
                     source,
                     payload,
@@ -89,6 +90,10 @@ export default function LeadForm({ source, payload, defaultDesiredJob = '', defa
                 <p>AI 답변·분석 생성을 위해 진단 데이터가 Google(미국)로 국외 이전될 수 있습니다.</p>
                 <p>동의를 거부할 수 있으며, 거부 시 상담 신청이 제한됩니다. <Link href="/privacy" className="underline">개인정보처리방침</Link></p>
             </div>
+            <label className="flex items-start gap-2 min-h-[44px]">
+                <input name="ageConfirmed" type="checkbox" required className="mt-1 w-5 h-5 accent-[var(--color-accent)]" />
+                <span className="text-sm text-text">[필수] 만 14세 이상입니다.</span>
+            </label>
             <label className="flex items-start gap-2 min-h-[44px]">
                 <input name="consent" type="checkbox" required className="mt-1 w-5 h-5 accent-[var(--color-accent)]" />
                 <span className="text-sm text-text">[필수] 개인정보 수집·이용에 동의합니다.</span>
