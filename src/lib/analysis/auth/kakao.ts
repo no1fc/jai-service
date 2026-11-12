@@ -35,9 +35,22 @@ export async function buildKakaoAuthorizeUrl({ state }: { state: string }): Prom
     return u.toString();
 }
 
-/** `/analysis`로 시작하는 상대 경로만 허용한다(오픈 리다이렉트 방지). 그 외는 기본 경로로 대체한다. */
+/**
+ * `/analysis`로 시작하는 상대 경로만 허용한다(오픈 리다이렉트·경로 탈출 방지). 그 외는 기본 경로로 대체한다.
+ * 퍼센트 인코딩을 먼저 디코드해 `%2e%2e`, `%2F%2F` 같은 인코딩 우회까지 같은 규칙으로 검사한다.
+ */
 export function safeReturnTo(raw: string | null): string {
-    return raw && /^\/analysis(\/[^\s]*)?$/.test(raw) && !raw.startsWith('//') ? raw : DEFAULT_RETURN;
+    if (!raw) return DEFAULT_RETURN;
+
+    let decoded: string;
+    try {
+        decoded = decodeURIComponent(raw);
+    } catch {
+        return DEFAULT_RETURN;
+    }
+
+    const isSafe = /^\/analysis(\/[^\s\\]*)?$/.test(decoded) && !decoded.includes('..') && !decoded.includes('\\');
+    return isSafe ? decoded : DEFAULT_RETURN;
 }
 
 /** 인가 코드를 액세스 토큰으로 교환한다. */
@@ -61,14 +74,22 @@ export async function exchangeKakaoCode(code: string): Promise<{ accessToken: st
     return { accessToken: json.access_token };
 }
 
-/** 카카오 사용자 정보를 조회한다. 이메일 동의가 없으면 null. 전화번호는 수집하지 않는다. */
+/**
+ * 카카오 사용자 정보를 조회한다. `is_email_valid`·`is_email_verified`가 모두 true일 때만 이메일을 반환하고,
+ * 그 외(미동의·미검증 포함)에는 null로 둔다. 전화번호는 수집하지 않는다.
+ */
 export async function fetchKakaoProfile(accessToken: string): Promise<{ id: string; email: string | null }> {
     const res = await fetch(ME_URL, {
         headers: { Authorization: `Bearer ${accessToken}` },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`카카오 사용자 조회 실패: HTTP ${res.status}`);
-    const json = await res.json() as { id?: number | string; kakao_account?: { email?: string; email_needs_agreement?: boolean } };
+    const json = await res.json() as {
+        id?: number | string;
+        kakao_account?: { email?: string; is_email_valid?: boolean; is_email_verified?: boolean };
+    };
     if (json.id === undefined) throw new Error('카카오 응답에 id 없음');
-    return { id: String(json.id), email: json.kakao_account?.email_needs_agreement ? null : (json.kakao_account?.email ?? null) };
+    const account = json.kakao_account;
+    const isEmailTrusted = account?.is_email_valid === true && account?.is_email_verified === true;
+    return { id: String(json.id), email: isEmailTrusted ? (account?.email ?? null) : null };
 }

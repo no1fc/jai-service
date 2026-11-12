@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { apiError } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
 import { KAKAO_STATE_COOKIE, buildKakaoAuthorizeUrl, isKakaoConfigured, safeReturnTo } from '@/lib/analysis/auth/kakao';
+import { isSecureRequest } from '@/lib/analysis/auth/user-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
             name: KAKAO_STATE_COOKIE,
             value: `${state}|${returnTo}`,
             httpOnly: true,
+            secure: isSecureRequest(request),
             sameSite: 'lax',
             path: '/',
             maxAge: STATE_COOKIE_MAX_AGE_SEC,

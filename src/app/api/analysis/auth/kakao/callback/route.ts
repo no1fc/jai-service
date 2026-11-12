@@ -25,6 +25,15 @@ function redirectToLogin(request: NextRequest, error: string): NextResponse {
     return res;
 }
 
+/**
+ * state 쿠키 값(`${state}|${returnTo}`)을 첫 `|` 위치로만 분리한다.
+ * returnTo 자체에 `|`가 들어 있어도(safeReturnTo가 허용하는 문자) 깨지지 않도록 split('|') 대신 indexOf를 쓴다.
+ */
+function splitStateCookie(value: string): { state: string; returnTo: string } {
+    const sep = value.indexOf('|');
+    return sep === -1 ? { state: value, returnTo: '' } : { state: value.slice(0, sep), returnTo: value.slice(sep + 1) };
+}
+
 export async function GET(request: NextRequest) {
     const ip = getClientIp(request);
     const burst = checkRateLimit(`analysis:kakao-callback:${ip}`, { maxRequests: 20, windowMs: 10 * 60 * 1000 });
@@ -33,13 +42,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     if (searchParams.get('error')) return redirectToLogin(request, 'cancelled');
 
-    const [savedState, savedReturnTo] = (request.cookies.get(KAKAO_STATE_COOKIE)?.value ?? '').split('|');
+    const { state: savedState, returnTo: savedReturnTo } = splitStateCookie(request.cookies.get(KAKAO_STATE_COOKIE)?.value ?? '');
     const state = searchParams.get('state') ?? '';
-    if (!savedState || !constantTimeEqual(savedState, state)) {
-        const res = apiError('요청이 올바르지 않습니다.', 400);
-        res.cookies.delete(KAKAO_STATE_COOKIE);
-        return res;
-    }
+    // state 불일치·부재는 컨트롤러 바인딩 요구사항상 JSON 400이 아니라 로그인 페이지로 리다이렉트한다(세션 미발급).
+    if (!savedState || !constantTimeEqual(savedState, state)) return redirectToLogin(request, 'state');
 
     const code = searchParams.get('code');
     if (!code) return redirectToLogin(request, 'kakao');
@@ -49,7 +55,7 @@ export async function GET(request: NextRequest) {
         const profile = await fetchKakaoProfile(accessToken);
         const user = await upsertUser({ provider: 'kakao', providerId: profile.id, email: profile.email, consent: true });
 
-        const res = NextResponse.redirect(new URL(safeReturnTo(savedReturnTo ?? null), request.url));
+        const res = NextResponse.redirect(new URL(safeReturnTo(savedReturnTo), request.url));
         await issueUserSession(res, user.id, request);
         res.cookies.delete(KAKAO_STATE_COOKIE);
         return res;

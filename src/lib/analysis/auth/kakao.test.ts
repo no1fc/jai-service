@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/db', () => ({ getSetting: vi.fn() }));
 import { getSetting } from '@/lib/db';
-import { buildKakaoAuthorizeUrl, fetchKakaoProfile, isKakaoConfigured, safeReturnTo } from './kakao';
+import { buildKakaoAuthorizeUrl, exchangeKakaoCode, fetchKakaoProfile, isKakaoConfigured, safeReturnTo } from './kakao';
 
 const settings: Record<string, string> = { kakao_rest_api_key: 'KEY', kakao_redirect_uri: 'http://localhost:3000/cb' };
 
@@ -38,12 +38,69 @@ describe('safeReturnTo', () => {
         expect(safeReturnTo('/admin')).toBe('/analysis/library');
         expect(safeReturnTo(null)).toBe('/analysis/library');
     });
+
+    // 보안 리뷰 지적 사항: 아래 우회 시도는 모두 /analysis 하위 경로가 아니므로 기본값으로 떨어져야 한다.
+    it('백슬래시·인코딩·경로 탈출 우회 시도를 모두 거부한다', () => {
+        expect(safeReturnTo('/\\evil.com')).toBe('/analysis/library');
+        expect(safeReturnTo('/%2F%2Fevil.com')).toBe('/analysis/library'); // 디코드하면 //evil.com
+        expect(safeReturnTo('/%5Cevil.com')).toBe('/analysis/library'); // 디코드하면 /\evil.com
+        expect(safeReturnTo('/analysis\\evil')).toBe('/analysis/library');
+        expect(safeReturnTo('/analysisX')).toBe('/analysis/library'); // prefix만 같고 경계가 아님
+        expect(safeReturnTo('/analysis/\tfoo')).toBe('/analysis/library'); // 탭
+        expect(safeReturnTo('/analysis/ foo')).toBe('/analysis/library'); // 공백
+        expect(safeReturnTo('/analysis/\nfoo')).toBe('/analysis/library'); // 개행
+        expect(safeReturnTo('/analysis/../admin')).toBe('/analysis/library'); // 경로 탈출
+        expect(safeReturnTo('/analysis/%2e%2e/admin')).toBe('/analysis/library'); // 인코딩된 경로 탈출
+    });
+});
+
+describe('exchangeKakaoCode', () => {
+    beforeEach(() => vi.mocked(getSetting).mockImplementation(async (k: string) => settings[k] ?? 'client-secret'));
+    afterEach(() => vi.unstubAllGlobals());
+    it('토큰 서버가 실패 응답을 주면 throw', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('err', { status: 400 })));
+        await expect(exchangeKakaoCode('code')).rejects.toThrow();
+    });
+    it('access_token이 없으면 throw', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 200 })));
+        await expect(exchangeKakaoCode('code')).rejects.toThrow();
+    });
 });
 
 describe('fetchKakaoProfile', () => {
     afterEach(() => vi.unstubAllGlobals());
-    it('id는 문자열로, 이메일 미동의면 null', async () => {
-        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 12345, kakao_account: { email_needs_agreement: true } }), { status: 200 })));
+
+    function mockProfileResponse(body: unknown, status = 200) {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status })));
+    }
+
+    it('id는 문자열로 변환하고, kakao_account가 없으면 이메일은 null', async () => {
+        mockProfileResponse({ id: 12345 });
         expect(await fetchKakaoProfile('tok')).toEqual({ id: '12345', email: null });
+    });
+
+    it('is_email_valid·is_email_verified가 모두 true일 때만 이메일을 저장한다', async () => {
+        mockProfileResponse({ id: 1, kakao_account: { email: 'a@b.com', is_email_valid: true, is_email_verified: true } });
+        expect(await fetchKakaoProfile('tok')).toEqual({ id: '1', email: 'a@b.com' });
+    });
+
+    it('is_email_valid가 false면 이메일은 null', async () => {
+        mockProfileResponse({ id: 1, kakao_account: { email: 'a@b.com', is_email_valid: false, is_email_verified: true } });
+        expect(await fetchKakaoProfile('tok')).toEqual({ id: '1', email: null });
+    });
+
+    it('is_email_verified가 false면 이메일은 null', async () => {
+        mockProfileResponse({ id: 1, kakao_account: { email: 'a@b.com', is_email_valid: true, is_email_verified: false } });
+        expect(await fetchKakaoProfile('tok')).toEqual({ id: '1', email: null });
+    });
+
+    it('응답이 실패 상태면 throw', async () => {
+        mockProfileResponse({}, 401);
+        await expect(fetchKakaoProfile('tok')).rejects.toThrow();
+    });
+
+    it('id가 없으면 throw', async () => {
+        mockProfileResponse({});
+        await expect(fetchKakaoProfile('tok')).rejects.toThrow();
     });
 });
