@@ -87,7 +87,7 @@ export default function AdminLayout({
       `}>
                 <div className="h-20 flex items-center px-6 border-b border-white/10">
                     <Link href="/admin" className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <span className="text-[var(--color-accent)]">NESS</span> <span className="text-white/60 text-lg font-medium">관리자</span>
+                        <span className="text-[var(--color-accent)]">J.AI</span> <span className="text-white/60 text-lg font-medium">관리자</span>
                     </Link>
                 </div>
 
@@ -149,7 +149,7 @@ export default function AdminLayout({
             <main className="flex-1 flex flex-col h-full w-full lg:w-[calc(100%-16rem)] overflow-hidden">
                 {/* 모바일 헤더용 여백 */}
                 <div className="h-16 lg:h-0 bg-[var(--color-bg-elevated)] lg:bg-transparent flex items-center px-6 lg:p-0">
-                    <span className="font-semibold text-[var(--color-text)] lg:hidden">NESS Admin</span>
+                    <span className="font-semibold text-[var(--color-text)] lg:hidden">J.AI Admin</span>
                 </div>
 
                 <div className="flex-1 p-6 lg:p-8 overflow-auto">

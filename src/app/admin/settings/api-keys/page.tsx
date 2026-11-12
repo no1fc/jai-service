@@ -388,7 +388,7 @@ export default function ApiKeysSettingsPage() {
 
                 <ApiGroup
                     title="Google Gemini API (AI)"
-                    description="NESS 챗봇 구동 및 AI 텍스트 생성에 사용되는 구글 제미나이 API Key 배열입니다."
+                    description="J.AI 구동 및 AI 텍스트 생성에 사용되는 구글 제미나이 API Key 배열입니다."
                     settingKey="gemini_api_keys"
                     icon={<Cpu className="text-[var(--color-accent)]" size={22} />}
                     keys={geminiKeys}

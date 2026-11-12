@@ -136,7 +136,7 @@ export default function AdminUsersManagementPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-[var(--color-text)]">관리자 지정</h1>
-                    <p className="text-[var(--color-text-muted)] mt-1">NESS 챗봇 시스템에 접근할 관리자 계정을 관리합니다.</p>
+                    <p className="text-[var(--color-text-muted)] mt-1">J.AI 시스템에 접근할 관리자 계정을 관리합니다.</p>
                 </div>
 
                 <button

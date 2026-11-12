@@ -44,7 +44,7 @@ export default function AdminLoginPage() {
         <div className="min-h-screen bg-[var(--color-bg)] flex flex-col justify-center items-center">
             <div className="bg-[var(--color-bg-elevated)] p-8 rounded-[4px] w-full max-w-md">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-[var(--color-accent)] mb-2">NESS Admin</h1>
+                    <h1 className="text-3xl font-bold text-[var(--color-accent)] mb-2">J.AI Admin</h1>
                     <p className="text-[var(--color-text-muted)]">관리자 계정으로 로그인해주세요.</p>
                 </div>
 
