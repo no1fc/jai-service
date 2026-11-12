@@ -14,12 +14,11 @@
  *   5) 테스트 행을 다시 삭제하고 커넥션을 닫는다.
  */
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
-
 import sql from 'mssql';
-import { getPool } from '../../src/lib/db';
-import { kstDayStartUtc } from '../../src/lib/analysis/auth/phone';
-import { insertVerificationIfAllowed } from '../../src/lib/analysis/auth/phone-store';
+
+// 정적 import는 호이스팅되어 dotenv보다 먼저 db.ts가 env를 읽으므로, env를 채운 뒤 동적 import한다.
+dotenv.config({ path: '.env.local' });
+const loadDb = () => import('../../src/lib/db');
 
 const TEST_PHONE = '01000000000';
 const CONCURRENCY = 10;
@@ -28,7 +27,7 @@ const RESEND_INTERVAL_SEC = 60;
 const DAILY_MAX = 5;
 
 async function deleteTestRows(): Promise<void> {
-    const pool = await getPool();
+    const pool = await (await loadDb()).getPool();
     await pool.request().input('phone', sql.VarChar(20), TEST_PHONE).query('DELETE FROM phone_verifications WHERE phone = @phone');
 }
 
@@ -40,6 +39,8 @@ async function main(): Promise<void> {
         return;
     }
 
+    const { kstDayStartUtc } = await import('../../src/lib/analysis/auth/phone');
+    const { insertVerificationIfAllowed } = await import('../../src/lib/analysis/auth/phone-store');
     await deleteTestRows();
 
     const results = await Promise.all(
@@ -51,7 +52,7 @@ async function main(): Promise<void> {
     console.log(`생성된 행 수: ${createdCount} (기대값: 1)`);
 
     await deleteTestRows();
-    const pool = await getPool();
+    const pool = await (await loadDb()).getPool();
     await pool.close();
 }
 
