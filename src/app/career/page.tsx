@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Copy } from 'lucide-react';
 import LeadForm from '@/components/lead/LeadForm';
 import CrossBorderNotice from '@/components/privacy/CrossBorderNotice';
+import AiGeneratedBadge from '@/components/AiGeneratedBadge';
 import { COMPETENCIES, type CareerResult, type CompetencyKey } from '@/lib/career/schema';
 
 type Step = 'input' | 'rating' | 'loading' | 'result';
@@ -128,6 +129,7 @@ export default function CareerPage() {
 
                     {tab === 'letter' ? (
                         <div className={`${box} space-y-3`}>
+                            <AiGeneratedBadge note="생성형 AI가 작성한 초안입니다. 사실과 다른 부분이 없는지 확인 후 수정해 사용하세요." />
                             <p className="whitespace-pre-line leading-relaxed text-text">{result.coverLetter}</p>
                             <button onClick={copyLetter} className="h-11 px-4 inline-flex items-center gap-2 rounded-[var(--radius-default)] border border-border text-text-secondary">
                                 <Copy size={16} aria-hidden /> {copied ? '복사됨' : '복사하기'}
@@ -136,6 +138,7 @@ export default function CareerPage() {
                         </div>
                     ) : (
                         <div className={`${box} space-y-5`}>
+                            <AiGeneratedBadge />
                             <ul className="space-y-2" aria-label="역량 점수">
                                 {COMPETENCIES.map(c => (
                                     <li key={c.key} className="grid grid-cols-[7rem_1fr_2rem] items-center gap-2 text-sm">

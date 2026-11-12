@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Send } from 'lucide-react';
 import LeadForm from '@/components/lead/LeadForm';
 import CrossBorderNotice from '@/components/privacy/CrossBorderNotice';
+import AiGeneratedBadge from '@/components/AiGeneratedBadge';
 import { MAX_HISTORY_MESSAGES } from '@/lib/qna/prompt';
 
 type Msg = { role: 'user' | 'model'; text: string; suggestDiagnosis?: boolean; isError?: boolean };
@@ -62,6 +63,7 @@ export default function AskPage() {
             <div className="flex-1 mt-4 space-y-3" aria-live="polite">
                 {messages.map((m, i) => (
                     <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start'}>
+                        {m.role === 'model' && m !== GREETING && !m.isError && <AiGeneratedBadge />}
                         <p className={`max-w-[85%] whitespace-pre-line rounded-[var(--radius-card)] px-4 py-3 leading-relaxed ${
                             m.role === 'user' ? 'bg-accent text-white' : 'bg-bg-elevated border border-border text-text'}`}>
                             {m.text}

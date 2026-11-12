@@ -2,6 +2,7 @@
 
 import { CheckCircle2, AlertTriangle, XCircle, Trophy, Lightbulb, MapPin } from 'lucide-react';
 import { DiagnosisResult } from '@/hooks/useChat';
+import AiGeneratedBadge from '@/components/AiGeneratedBadge';
 
 const TYPE_CONFIG = {
     '1유형_요건심사형': {
@@ -83,8 +84,8 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
                 {/* 컨텐츠 (스크롤 여유 공간) */}
                 <div className="flex-1 flex flex-col justify-center mb-4 relative z-10 shrink-0">
                     <div className="relative py-4 px-5 border border-accent/30 rounded-[var(--radius-card)] bg-accent/5">
-
-                        <p className="text-text text-sm leading-relaxed font-medium text-justify relative z-10">
+                        <AiGeneratedBadge />
+                        <p className="mt-2 text-text text-sm leading-relaxed font-medium text-justify relative z-10">
                             {result.description.split('\n').map((line, i) => (
                                 <span key={i}>{line}<br /></span>
                             ))}

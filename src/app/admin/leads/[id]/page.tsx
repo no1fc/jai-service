@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LEAD_SOURCE_LABEL, LEAD_STATUS_LABEL, type Lead, type LeadStatus } from '@/types/lead';
 import { counselorReportSchema, type CounselorReport } from '@/lib/report/prompt';
+import AiGeneratedBadge from '@/components/AiGeneratedBadge';
 
 const STATUSES = Object.keys(LEAD_STATUS_LABEL) as LeadStatus[];
 const card = 'rounded-[var(--radius-card)] border border-border bg-bg-elevated p-5';
@@ -88,7 +89,10 @@ export default function AdminLeadDetailPage({ params }: { params: Promise<{ id: 
 
             <div className={card}>
                 <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-bold text-text">상담사 AI 리포트</h2>
+                    <div className="flex items-center gap-2">
+                        <h2 className="font-bold text-text">상담사 AI 리포트</h2>
+                        {report && <AiGeneratedBadge />}
+                    </div>
                     <button onClick={() => generate(!!report)} disabled={busy}
                         className="h-9 px-3 rounded-[var(--radius-default)] bg-accent text-white text-sm font-semibold disabled:opacity-50">
                         {busy ? '생성 중...' : report ? '다시 생성' : '리포트 생성'}
