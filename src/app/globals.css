@@ -35,6 +35,9 @@
   --color-border-strong: #d1d6db;
   --color-border-tab: #8b95a1;
 
+  /* Overlay */
+  --color-backdrop: rgb(0 0 0 / 40%);
+
   /* Radius */
   --radius-default: 8px;
   --radius-input: 10px;

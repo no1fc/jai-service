@@ -17,7 +17,7 @@ export default function LeadModal({ open, onClose, children }: { open: boolean; 
     }, [open]);
     return (
         <dialog ref={ref} onClose={onClose} aria-labelledby="lead-modal-title"
-            className="m-auto w-[min(100%-2rem,36rem)] rounded-[var(--radius-card)] border border-border bg-bg p-0 backdrop:bg-black/40">
+            className="m-auto w-[min(100%-2rem,36rem)] rounded-[var(--radius-card)] border border-border bg-bg p-0 backdrop:bg-backdrop">
             <div className="flex items-center justify-between px-5 pt-4">
                 <h2 id="lead-modal-title" className="font-bold text-text">무료 1:1 상담 신청</h2>
                 <button type="button" onClick={onClose} aria-label="닫기" className="w-11 h-11 inline-flex items-center justify-center"><X size={20} /></button>

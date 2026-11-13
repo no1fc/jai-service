@@ -51,7 +51,7 @@ export default function ResultSection({ result, branch, userAnswers }: ResultSec
             </div>
             <div className="lg:col-span-2 w-full max-w-xl mx-auto">
                 <button type="button" onClick={() => setLeadOpen(true)} disabled={leadDone}
-                    className="h-12 w-full max-w-xl mx-auto bg-accent text-white font-bold rounded-[var(--radius-default)] hover:bg-accent-hover disabled:opacity-60 block">
+                    className="h-12 w-full bg-accent text-white font-bold rounded-[var(--radius-default)] hover:bg-accent-hover disabled:opacity-60 block">
                     {leadDone ? '접수 완료' : '무료 1:1 상담 신청'}
                 </button>
             </div>
