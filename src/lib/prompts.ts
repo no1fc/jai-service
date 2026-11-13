@@ -93,7 +93,7 @@ export const DEFAULT_INFO_MESSAGE = [
     message: DEFAULT_INFO_MESSAGE_TEXT,
     choices: DEFAULT_INFO_MESSAGE_CHOICES,
     phase: 'info',
-    currentStep: 1,
+    currentStep: 0,
     totalSteps: 12
   }
 ];
