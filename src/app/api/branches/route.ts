@@ -7,6 +7,7 @@
 import { type NextRequest } from 'next/server';
 import { getBranchByRegion, getAllBranches } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,8 @@ export async function GET(request: NextRequest) {
 
         const branch = await getBranchByRegion(sido, sigungu);
         return apiSuccess({ branch });
-    } catch {
+    } catch (error) {
+        logger.error('/api/branches 오류:', error);
         return apiError('지점 조회 중 오류가 발생했습니다.');
     }
 }

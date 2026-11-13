@@ -13,11 +13,12 @@ import BranchCard from '@/components/result/BranchCard';
 import MapWidget from '@/components/result/MapWidget';
 import RegionSelector from './RegionSelector';
 import LeadForm from '@/components/lead/LeadForm';
-import { Branch } from '@/types/db';
 import { ArrowLeft } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { SIDO_LIST } from '@/lib/regions';
 import { NUMBER_LIMITS } from '@/lib/eligibility/answers';
+import { shouldLookupBranch } from '@/lib/eligibility/branch-lookup';
+import type { BranchState } from '@/types/chat';
 
 /** questionId가 숫자 범위 제한이 있는 질문인지 (age, monthlyIncome) */
 function isNumberLimitKey(id: string | null): id is keyof typeof NUMBER_LIMITS {
@@ -46,7 +47,7 @@ export default function ChatContainer() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const resultRef = useRef<HTMLDivElement>(null);
-    const [branch, setBranch] = useState<Branch | null | 'loading' | 'none'>('none');
+    const [branch, setBranch] = useState<BranchState>('none');
     const [numberError, setNumberError] = useState('');
 
     useEffect(() => {
@@ -77,11 +78,13 @@ export default function ChatContainer() {
             );
             const data = await response.json();
 
-            if (data.branch) {
-                setBranch(data.branch as Branch);
-            } else {
+            if (!response.ok) {
+                logger.warn('지점 조회 응답 오류:', response.status);
                 setBranch(null);
+                return;
             }
+
+            setBranch(data.branch ?? null);
         } catch (error) {
             logger.error('지점 조회 오류:', error);
             setBranch(null);
@@ -89,7 +92,7 @@ export default function ChatContainer() {
     };
 
     useEffect(() => {
-        if (phase === 'result' && branch === 'none' && result && result.type !== '제한') {
+        if (shouldLookupBranch(phase, branch, result)) {
             const regionMessage = messages.find((m) => m.role === 'user' && SIDO_LIST.some(sido => m.content.startsWith(sido)));
 
             if (regionMessage) {
@@ -152,9 +155,13 @@ export default function ChatContainer() {
                                     {result && <ResultCard result={result} />}
                                 </div>
                                 <div className="flex flex-col h-full">
-                                    {branch !== 'loading' && result && (
-                                        <BranchCard branch={branch === 'none' ? null : branch} diagnosisType={result.type} />
-                                    )}
+                                    {result && (branch === 'none' || branch === 'loading' ? (
+                                        <div className="w-full h-full min-h-[400px] flex justify-center items-center">
+                                            <LoadingIndicator mode="bubble" />
+                                        </div>
+                                    ) : (
+                                        <BranchCard branch={branch} diagnosisType={result.type} />
+                                    ))}
                                 </div>
                                 <div className="lg:col-span-2 w-full max-w-xl mx-auto">
                                     {result && (

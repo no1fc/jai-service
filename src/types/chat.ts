@@ -3,6 +3,8 @@
  * useChat 훅과 ChatContainer 등 컴포넌트에서 공유합니다.
  */
 
+import type { Branch } from '@/types/db';
+
 /** 질문 입력 방식 (규칙 엔진 질문 정의와 동일) */
 export type QuestionType = 'choice' | 'number' | 'region';
 
@@ -36,6 +38,9 @@ export interface DiagnosisResult {
 
 /** 챗봇 단계 타입 */
 export type ChatPhase = 'intro' | 'info' | 'questioning' | 'analyzing' | 'location' | 'result' | 'ended';
+
+/** 지점 조회 상태: 조회 전('none'), 조회 중('loading'), 매칭 지점 없음(null), 매칭 지점(Branch) */
+export type BranchState = Branch | null | 'loading' | 'none';
 
 /** 챗봇 상태 스냅샷 (이전으로 돌아가기 기능용) */
 export interface ChatStateSnapshot {
