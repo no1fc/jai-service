@@ -3,6 +3,9 @@
  * useChat 훅과 ChatContainer 등 컴포넌트에서 공유합니다.
  */
 
+/** 질문 입력 방식 (규칙 엔진 질문 정의와 동일) */
+export type QuestionType = 'choice' | 'number' | 'region';
+
 /** 선택지 타입 */
 export interface Choice {
     id: string;
@@ -42,7 +45,9 @@ export interface ChatStateSnapshot {
     userAnswers: Record<string, string>;
     history: Array<{ role: 'user' | 'model'; content: string }>;
     result: DiagnosisResult | null;
-    showIncomeTable: boolean;
+    questionId: string | null;
+    questionType: QuestionType | null;
+    totalSteps: number;
 }
 
 /** useChat 훅 반환값 타입 */
@@ -54,7 +59,8 @@ export interface UseChatReturn {
     phase: ChatPhase;
     result: DiagnosisResult | null;
     isError: boolean;
-    showIncomeTable: boolean;
+    questionId: string | null;
+    questionType: QuestionType | null;
     canGoBack: boolean;
     userAnswers: Record<string, string>;
     sendChoice: (choice: Choice) => Promise<void>;

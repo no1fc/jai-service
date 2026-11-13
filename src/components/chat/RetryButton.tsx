@@ -41,8 +41,8 @@ export default function RetryButton({ onRetry, cooldownSeconds = 30 }: RetryButt
                 className={`
                     flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all
                     ${timeLeft > 0
-                        ? 'bg-white/5 text-white/30 cursor-not-allowed border border-white/10'
-                        : 'bg-white/10 text-white hover:bg-white/20 border border-white/20 active:scale-95 shadow-lg shadow-white/5'
+                        ? 'bg-bg-elevated text-text-muted cursor-not-allowed border border-border'
+                        : 'bg-bg-elevated text-text hover:bg-accent-soft border border-border-strong active:scale-95 shadow-sm'
                     }
                 `}
             >

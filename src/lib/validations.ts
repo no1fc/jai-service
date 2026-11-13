@@ -4,6 +4,8 @@
  */
 
 import { z } from 'zod';
+import { SIDO_LIST } from '@/lib/regions';
+import { PRIVACY_POLICY_MAX_CHARS } from '@/lib/privacy/policy';
 
 // ==========================================
 // Branches
@@ -75,13 +77,68 @@ export const updateSettingSchema = z.object({
 // ==========================================
 
 export const chatRequestSchema = z.object({
+    // messages는 전달받지만 서버에서는 사용하지 않음(클라이언트 호환용). 크기만 제한한다.
     messages: z.array(z.object({
         role: z.enum(['user', 'model']),
-        content: z.string(),
-    })).optional().default([]),
+        content: z.string().max(1000),
+    })).max(60).optional().default([]),
     phase: z.enum(['intro', 'info', 'questioning', 'analyzing', 'location', 'result', 'ended']),
-    userAnswers: z.record(z.string(), z.string()).optional().default({}),
+    userAnswers: z.record(z.string().max(50), z.string().max(100)).optional().default({}),
     currentStep: z.number().int().min(0).optional().default(0),
+});
+
+// ==========================================
+// Leads (상담 신청)
+// ==========================================
+
+export const LEAD_SOURCES = ['qna', 'diagnosis', 'career'] as const;
+export const LEAD_STATUSES = ['new', 'contacted', 'enrolled', 'dropped'] as const;
+const MAX_PAYLOAD_CHARS = 20000;
+
+export const leadSchema = z.object({
+    name: z.string().trim().min(2, '이름을 입력해주세요.').max(50),
+    phone: z.string().trim()
+        .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, '휴대폰 번호 형식이 올바르지 않습니다.')
+        .transform(v => v.replace(/-/g, '')),
+    region: z.enum(SIDO_LIST, { message: '지역을 올바르게 선택해주세요.' }),
+    desiredJob: z.string().trim().max(100).optional().default(''),
+    source: z.enum(LEAD_SOURCES),
+    payload: z.record(z.string(), z.unknown()).default({})
+        .refine(p => JSON.stringify(p).length <= MAX_PAYLOAD_CHARS, '전송 데이터가 너무 큽니다.'),
+    consent: z.literal(true, { message: '개인정보 수집·이용에 동의해주세요.' }),
+    // 저장하지는 않는다(insertLead는 기존 필드만 사용) — 신청 가능 연령(만 14세) 확인용 검증 전용 필드.
+    ageConfirmed: z.literal(true, { message: '만 14세 이상만 신청할 수 있습니다.' }),
+});
+
+export type LeadInput = z.infer<typeof leadSchema>;
+
+export const updateLeadStatusSchema = z.object({ status: z.enum(LEAD_STATUSES) });
+
+// ==========================================
+// Q&A 봇
+// ==========================================
+
+export const askRequestSchema = z.object({
+    messages: z.array(z.object({
+        role: z.enum(['user', 'model']),
+        text: z.string().trim().min(1).max(500, '질문은 500자 이내로 입력해주세요.'),
+    })).min(1).max(30, '대화가 너무 깁니다. 새로고침 후 다시 질문해 주세요.')
+        .refine(m => m[m.length - 1].role === 'user', '마지막 메시지는 질문이어야 합니다.'),
+});
+
+export const askAnswerSchema = z.object({
+    answer: z.string().min(1),
+    suggestDiagnosis: z.boolean().default(false),
+});
+
+// ==========================================
+// 개인정보처리방침
+// ==========================================
+
+export const updatePrivacyPolicySchema = z.object({
+    policy: z.string().trim()
+        .min(1, '본문을 입력해주세요.')
+        .max(PRIVACY_POLICY_MAX_CHARS, `본문은 ${PRIVACY_POLICY_MAX_CHARS}자 이내로 입력해주세요.`),
 });
 
 // ==========================================

@@ -1,60 +1,58 @@
 /**
- * Global CSS — NESS Design System
- * Based on DESIGN.md (opencode.ai inspired)
- * Warm dark, flat, monospace-first aesthetic
+ * Global CSS — J.AI Design System (DESIGN.md)
+ * 밝고 신뢰감 있는 공공·커리어 톤, 모바일 우선
  */
 
 @import "tailwindcss";
 
-/* ====================================
-   Design Tokens (DESIGN.md)
- ==================================== */
 @theme {
   /* Background */
-  --color-bg: #201d1d;
-  --color-bg-elevated: #302c2c;
-  --color-input-bg: #302c2c;
+  --color-bg: #f7f8fa;
+  --color-bg-elevated: #ffffff;
+  --color-input-bg: #ffffff;
 
   /* Text */
-  --color-text: #fdfcfc;
-  --color-text-secondary: #9a9898;
-  --color-text-muted: #6e6e73;
-  --color-text-dark: #424245;
+  --color-text: #191f28;
+  --color-text-secondary: #4e5968;
+  --color-text-muted: #8b95a1;
+  --color-text-dark: #333d4b;
 
-  /* Accent */
-  --color-accent: #007aff;
-  --color-accent-hover: #0056b3;
-  --color-accent-active: #004085;
+  /* Accent (신뢰 블루) */
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-active: #1e40af;
+  --color-accent-soft: #eef4ff;
 
   /* Semantic */
-  --color-danger: #ff3b30;
-  --color-danger-hover: #d70015;
-  --color-success: #30d158;
-  --color-warning: #ff9f0a;
-  --color-warning-hover: #cc7f08;
+  --color-danger: #e5484d;
+  --color-danger-hover: #cd2b31;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
 
   /* Border */
-  --color-border: rgba(15, 0, 0, 0.12);
-  --color-border-strong: #646262;
-  --color-border-tab: #9a9898;
+  --color-border: #e5e8eb;
+  --color-border-strong: #d1d6db;
+  --color-border-tab: #8b95a1;
 
   /* Radius */
-  --radius-default: 4px;
-  --radius-input: 6px;
+  --radius-default: 8px;
+  --radius-input: 10px;
+  --radius-card: 12px;
 
   /* Font */
-  --font-mono: 'Berkeley Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  --font-sans: 'Pretendard Variable', 'Pretendard', var(--font-mono);
+  --font-sans: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Animation */
   --animate-reveal-up: reveal-up 0.2s ease-out forwards;
 }
 
 :root {
-  --color-bg: #201d1d;
-  --color-bg-elevated: #302c2c;
-  --color-accent: #007aff;
-  --color-border: rgba(15, 0, 0, 0.12);
+  --color-bg: #f7f8fa;
+  --color-bg-elevated: #ffffff;
+  --color-accent: #2563eb;
+  --color-border: #e5e8eb;
 }
 
 /* ====================================
@@ -67,8 +65,8 @@ html {
 }
 
 body {
-  font-family: var(--font-mono);
-  color: #fdfcfc;
+  font-family: var(--font-sans);
+  color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.5;
   word-break: keep-all;
@@ -164,12 +162,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #646262;
+  background: var(--color-border-strong);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9a9898;
+  background: var(--color-text-muted);
 }
 
 /* Selection */

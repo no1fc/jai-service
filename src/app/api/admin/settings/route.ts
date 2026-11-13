@@ -17,25 +17,14 @@ export async function GET() {
         const promptCategories = await getPromptCategories();
 
         // DB에 저장되지 않은 설정들(Default 값)을 클라이언트에 제공
-        const {
-            DEFAULT_SYSTEM_PROMPT,
-            DEFAULT_PDF_NESS_INFO,
-            DEFAULT_MEDIAN_INCOME_TABLE,
-            DEFAULT_SCORE_TABLE,
-            DEFAULT_STATIC_QUESTIONS,
-            DEFAULT_INTRO_MESSAGE,
-            DEFAULT_INFO_MESSAGE,
-        } = await import('@/lib/prompts');
+        const { DEFAULT_INTRO_MESSAGE, DEFAULT_INFO_MESSAGE } = await import('@/lib/prompts');
+        const { DEFAULT_QNA_KNOWLEDGE } = await import('@/lib/qna/knowledge');
 
         for (const cat of promptCategories) {
             if (!settings[cat.key] || settings[cat.key].trim() === '') {
-                if (cat.key === 'system_prompt') settings[cat.key] = DEFAULT_SYSTEM_PROMPT;
-                else if (cat.key === 'pdf_ness_info') settings[cat.key] = DEFAULT_PDF_NESS_INFO;
-                else if (cat.key === 'median_income_table') settings[cat.key] = DEFAULT_MEDIAN_INCOME_TABLE;
-                else if (cat.key === 'score_table') settings[cat.key] = DEFAULT_SCORE_TABLE;
-                else if (cat.key === 'static_questions') settings[cat.key] = JSON.stringify(DEFAULT_STATIC_QUESTIONS);
-                else if (cat.key === 'intro_message') settings[cat.key] = JSON.stringify(DEFAULT_INTRO_MESSAGE);
+                if (cat.key === 'intro_message') settings[cat.key] = JSON.stringify(DEFAULT_INTRO_MESSAGE);
                 else if (cat.key === 'info_message') settings[cat.key] = JSON.stringify(DEFAULT_INFO_MESSAGE);
+                else if (cat.key === 'qna_knowledge') settings[cat.key] = DEFAULT_QNA_KNOWLEDGE;
             }
         }
 

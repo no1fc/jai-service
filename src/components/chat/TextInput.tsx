@@ -8,9 +8,10 @@ interface TextInputProps {
     onCancel?: () => void;
     placeholder?: string;
     disabled?: boolean;
+    inputMode?: 'text' | 'numeric';
 }
 
-export default function TextInput({ onSubmit, onCancel, placeholder, disabled }: TextInputProps) {
+export default function TextInput({ onSubmit, onCancel, placeholder, disabled, inputMode }: TextInputProps) {
     const [text, setText] = useState('');
 
     const handleSubmit = () => {
@@ -41,12 +42,13 @@ export default function TextInput({ onSubmit, onCancel, placeholder, disabled }:
             <div className={`relative flex items-center transition-colors ${disabled ? 'opacity-50' : ''}`}>
                 <input
                     type="text"
+                    inputMode={inputMode}
                     value={text}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder || '메시지를 입력하세요...'}
                     disabled={disabled}
-                    className="w-full bg-bg-elevated border border-[rgba(15,0,0,0.12)] rounded-[6px] px-6 py-4 md:py-6 pr-36 text-base md:text-lg text-text focus:outline-none focus:border-accent transition-colors placeholder:text-text-muted"
+                    className="w-full bg-bg-elevated border border-border rounded-[var(--radius-input)] px-6 py-4 md:py-6 pr-36 text-base md:text-lg text-text focus:outline-none focus:border-accent transition-colors placeholder:text-text-muted"
                 />
 
                 <div className="absolute right-3 flex items-center gap-2">
@@ -54,7 +56,7 @@ export default function TextInput({ onSubmit, onCancel, placeholder, disabled }:
                         <button
                             onClick={onCancel}
                             disabled={disabled}
-                            className="w-10 h-10 md:w-12 md:h-12 rounded-[4px] flex items-center justify-center text-text-muted hover:text-text-secondary transition-colors"
+                            className="w-10 h-10 md:w-12 md:h-12 rounded-[var(--radius-default)] flex items-center justify-center text-text-muted hover:text-text-secondary transition-colors"
                             aria-label="취소"
                         >
                             <X size={20} />
@@ -63,12 +65,12 @@ export default function TextInput({ onSubmit, onCancel, placeholder, disabled }:
                     <button
                         onClick={handleSubmit}
                         disabled={!canSubmit || disabled}
-                        className={`w-10 h-10 md:w-12 md:h-12 rounded-[4px] flex items-center justify-center transition-colors ${canSubmit ? 'bg-bg border border-[rgba(15,0,0,0.12)] text-text hover:text-accent-hover' : 'bg-bg-elevated text-text-muted'}`}
+                        className={`w-10 h-10 md:w-12 md:h-12 rounded-[var(--radius-default)] flex items-center justify-center transition-colors ${canSubmit ? 'bg-bg border border-border text-text hover:text-accent-hover' : 'bg-bg-elevated text-text-muted'}`}
                         aria-label="전송"
                     >
                         <Send size={18} fill={canSubmit ? 'currentColor' : 'none'} />
                     </button>
-                    <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-[4px] bg-bg-elevated border border-[rgba(15,0,0,0.12)] ml-1">
+                    <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-[var(--radius-card)] bg-bg-elevated border border-border ml-1">
                         <CornerDownLeft size={10} className="text-text-muted" />
                         <span className="text-[9px] font-black text-text-muted tracking-tighter">ENTER</span>
                     </div>

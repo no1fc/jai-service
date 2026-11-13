@@ -31,21 +31,23 @@ const mssqlConfig: MssqlConfig = {
 
 // 커넥션 풀 싱글톤
 let poolPromise: Promise<ConnectionPool> | null = null;
-let schemaInitialized = false;
+// 스키마 초기화 Promise를 메모이즈해 동시 요청이 initSchema를 중복 실행하지 않도록 한다.
+let schemaPromise: Promise<void> | null = null;
 
 /**
  * MSSQL 커넥션 풀 반환 (최초 호출 시 연결 + 스키마 초기화)
  */
-async function getPool(): Promise<ConnectionPool> {
+export async function getPool(): Promise<ConnectionPool> {
     if (!poolPromise) {
         poolPromise = sql.connect(mssqlConfig);
     }
     const pool = await poolPromise;
 
-    if (!schemaInitialized) {
-        await initSchema(pool);
-        schemaInitialized = true;
-    }
+    schemaPromise ??= initSchema(pool).catch((err) => {
+        schemaPromise = null; // 실패 시 다음 호출에서 재시도할 수 있도록 되돌린다.
+        throw err;
+    });
+    await schemaPromise;
 
     return pool;
 }
@@ -134,6 +136,44 @@ async function initSchema(pool: ConnectionPool): Promise<void> {
                 result_type NVARCHAR(100) NULL,
                 created_at DATETIME DEFAULT GETDATE()
             );
+        END
+    `);
+
+    // 5. 상담 신청(리드) 테이블 생성
+    await pool.request().query(`
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'leads')
+        BEGIN
+            CREATE TABLE leads (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                name NVARCHAR(50) NOT NULL,
+                phone VARCHAR(20) NOT NULL,
+                region NVARCHAR(50) NOT NULL,
+                desired_job NVARCHAR(100) NOT NULL DEFAULT '',
+                source VARCHAR(20) NOT NULL,
+                payload NVARCHAR(MAX) NOT NULL,
+                consent_at DATETIME2 NOT NULL,
+                report NVARCHAR(MAX) NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'new',
+                created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+            );
+            CREATE INDEX IX_leads_created_at ON leads (created_at DESC);
+        END
+    `);
+
+    // 6. 관리자 개인정보 접속기록 테이블 생성 (개인정보 보호법 제29조, 안전성 확보조치 기준)
+    await pool.request().query(`
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'admin_access_logs')
+        BEGIN
+            CREATE TABLE admin_access_logs (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                admin_username NVARCHAR(100) NOT NULL,
+                action VARCHAR(30) NOT NULL,
+                target_type VARCHAR(30) NOT NULL,
+                target_id INT NULL,
+                ip VARCHAR(64) NULL,
+                created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+            );
+            CREATE INDEX IX_admin_access_logs_created_at ON admin_access_logs (created_at DESC);
         END
     `);
 }
@@ -378,21 +418,42 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     }, {});
 }
 
+const MERGE_SETTING_SQL = `
+    MERGE system_settings AS target
+    USING (SELECT @key AS [key], @value AS value) AS source
+    ON target.[key] = source.[key]
+    WHEN MATCHED THEN
+        UPDATE SET value = source.value, updated_at = GETDATE()
+    WHEN NOT MATCHED THEN
+        INSERT ([key], value, updated_at) VALUES (source.[key], source.value, GETDATE());
+`;
+
 export async function updateSetting(key: string, value: string): Promise<boolean> {
+    return updateSettings({ [key]: value });
+}
+
+/**
+ * 여러 설정을 하나의 트랜잭션으로 저장한다. 하나라도 실패하면 전부 롤백한다.
+ */
+export async function updateSettings(entries: Record<string, string>): Promise<boolean> {
     const pool = await getPool();
-    const result = await pool.request()
-        .input('key', sql.NVarChar(255), key)
-        .input('value', sql.NVarChar(sql.MAX), value)
-        .query(`
-            MERGE system_settings AS target
-            USING (SELECT @key AS [key], @value AS value) AS source
-            ON target.[key] = source.[key]
-            WHEN MATCHED THEN
-                UPDATE SET value = source.value, updated_at = GETDATE()
-            WHEN NOT MATCHED THEN
-                INSERT ([key], value, updated_at) VALUES (source.[key], source.value, GETDATE());
-        `);
-    return (result.rowsAffected[0] ?? 0) > 0;
+    const transaction = new Transaction(pool);
+    await transaction.begin();
+    try {
+        for (const [key, value] of Object.entries(entries)) {
+            const result = await new Request(transaction)
+                .input('key', sql.NVarChar(255), key)
+                .input('value', sql.NVarChar(sql.MAX), value)
+                .query(MERGE_SETTING_SQL);
+            if ((result.rowsAffected[0] ?? 0) === 0) throw new Error(`설정 저장 실패: ${key}`);
+        }
+        await transaction.commit();
+        return true;
+    } catch (error) {
+        await transaction.rollback();
+        logger.error('설정 저장 트랜잭션 실패:', error);
+        return false;
+    }
 }
 
 // ==========================================

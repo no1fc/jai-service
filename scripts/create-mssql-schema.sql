@@ -1,5 +1,5 @@
 -- NESS Chatbot MSSQL Schema
--- SQLite -> MSSQL 마이그레이션용 스키마 생성 스크립트
+-- MSSQL 스키마 생성 스크립트 (앱 initSchema와 동일 구조)
 
 -- 1. 지점 정보 테이블
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'branches')
@@ -56,3 +56,38 @@ BEGIN
         created_at DATETIME DEFAULT GETDATE()
     );
 END;
+
+-- 5. 상담 신청(리드) 테이블
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'leads')
+BEGIN
+    CREATE TABLE leads (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        name NVARCHAR(50) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        region NVARCHAR(50) NOT NULL,
+        desired_job NVARCHAR(100) NOT NULL DEFAULT '',
+        source VARCHAR(20) NOT NULL,
+        payload NVARCHAR(MAX) NOT NULL,
+        consent_at DATETIME2 NOT NULL,
+        report NVARCHAR(MAX) NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'new',
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_leads_created_at ON leads (created_at DESC);
+END;
+
+-- 6. 관리자 개인정보 접속기록 테이블 (개인정보 보호법 제29조, 안전성 확보조치 기준)
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'admin_access_logs')
+BEGIN
+    CREATE TABLE admin_access_logs (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        admin_username NVARCHAR(100) NOT NULL,
+        action VARCHAR(30) NOT NULL,
+        target_type VARCHAR(30) NOT NULL,
+        target_id INT NULL,
+        ip VARCHAR(64) NULL,
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_admin_access_logs_created_at ON admin_access_logs (created_at DESC);
+END;
+GO

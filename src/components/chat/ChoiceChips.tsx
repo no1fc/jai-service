@@ -51,7 +51,7 @@ export default function ChoiceChips({ choices, onSelect, onTextSubmit, disabled 
                     key={choice.id}
                     onClick={() => handleChoiceClick(choice)}
                     disabled={disabled}
-                    className="group relative flex items-center gap-3 md:gap-4 px-6 py-4 md:px-8 md:py-5 rounded-[4px] bg-bg-elevated border border-[rgba(15,0,0,0.12)] hover:border-border-strong transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group relative flex items-center gap-3 md:gap-4 px-6 py-4 md:px-8 md:py-5 rounded-[var(--radius-default)] bg-bg-elevated border border-border hover:border-border-strong transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {choice.type === 'text' && <Sparkles size={18} className="text-accent" />}
                     <span className="text-base md:text-lg font-bold text-text-secondary group-hover:text-accent transition-colors">

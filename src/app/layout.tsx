@@ -4,21 +4,13 @@ import Header from '@/components/layout/Header';
 
 // SEO 메타데이터 설정
 export const metadata: Metadata = {
-  title: 'NESS 챗봇 | 국민취업지원제도 AI 자가진단',
+  title: 'J.AI | 잡모아 AI 취업 도우미',
   description:
-    '간단한 질문으로 국민취업지원제도 참여 유형(1유형, 2유형)과 예상 수당을 확인해보세요. AI가 PDF 규정을 분석하여 맞춤형 진단 결과를 제공합니다.',
-  keywords: [
-    '국민취업지원제도',
-    '자가진단',
-    'AI 챗봇',
-    '1유형',
-    '2유형',
-    '구직촉진수당',
-    '잡모아',
-  ],
+    '국민취업지원제도 24시 Q&A, 수급자격 모의진단, AI 1분 자기소개서·역량 진단까지. 잡모아 J.AI가 무료로 도와드립니다.',
+  keywords: ['국민취업지원제도', '국취', '구직촉진수당', '자기소개서', '역량진단', 'AI 상담', '잡모아', 'J.AI'],
   openGraph: {
-    title: 'NESS 챗봇 | 국민취업지원제도 AI 자가진단',
-    description: '3~5분 만에 확인하는 나의 국민취업지원제도 참여 유형',
+    title: 'J.AI | 잡모아 AI 취업 도우미',
+    description: '궁금한 건 바로 묻고, 내 유형과 역량을 1분 만에 확인하세요.',
     type: 'website',
     locale: 'ko_KR',
   },

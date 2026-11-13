@@ -1,26 +1,33 @@
-# NESS ChatBot (국민취업지원제도 자가진단 챗봇)
+# J.AI (잡모아 AI 취업 도우미)
 
-NESS ChatBot은 사용자가 국민취업지원제도 수급 자격 및 유형을 AI와의 대화를 통해 쉽고 빠르게 진단받을 수 있도록 돕는 서비스입니다.
+J.AI는 국민취업지원제도(국취) 잠재 참여자를 AI로 발굴하고 실제 상담 신청으로 전환하는 서비스입니다.
 
 ## 주요 기능
 
-### 1. AI 자가진단 챗봇
+### 1. 국취 24시 Q&A 봇 (`/ask`)
 
-- **Google Gemini AI**를 활용한 자연스러운 대화형 진단.
-- 사용자의 응답을 실시간으로 분석하여 1유형, 2유형 및 제한 대상 판별.
-- 진단 결과와 함께 맞춤형 팁 및 안내 사항 제공.
+- 국취 제도 FAQ·지식 문서를 프롬프트에 주입한 **Google Gemini** 기반 Q&A.
 
-### 2. 지역별 지점 안내
+### 2. 수급자격 모의진단 (`/chat`)
 
-- 진단 완료 후 사용자의 위치에 따른 가장 가까운 운영 지점(분소) 안내.
-- Kakao Maps 연동으로 지점별 위치 및 연락처 정보 제공.
+- 12문항 규칙 엔진(`src/lib/eligibility/judge.ts`)이 유형(1유형/2유형/제한)을 판정하고, Gemini가 판정 결과에 대한 설명만 생성.
 
-### 3. 관리자 대시보드
+### 3. AI 1분 자기소개서·역량 진단 (`/career`)
+
+- 간단 입력으로 자기소개서 초안과 희망 직무 기준 역량 진단 결과를 생성.
+
+### 4. 상담 신청 → 상담사 AI 리포트
+
+- 각 결과 화면에서 개인정보 동의 후 상담 신청 → MSSQL `leads` 테이블 저장.
+- 관리자 `/admin/leads`에서 리드 목록 확인, Gemini로 상담사용 분석 리포트 생성.
+
+### 5. 관리자 대시보드
 
 - **지점 관리**: 전국 지점 정보 추가, 수정, 삭제 및 활성화 상태 관리.
 - **사용자 관리**: 서비스 운영진 계정 관리 (bcrypt 보안 적용).
-- **설정 관리**: Gemini API 키 및 AI 프롬프트(페르소나) 실시간 업데이트.
+- **설정 관리**: Gemini API 키·모델(용도별) 및 AI 프롬프트(페르소나) 실시간 업데이트.
 - **사용량 모니터링**: API 토큰 사용량 확인 및 분석.
+- **개인정보처리방침 관리**: 공개 `/privacy` 페이지 본문을 관리자 화면(최고 관리자 전용)에서 실시간 미리보기와 함께 편집.
 
 ---
 
@@ -30,9 +37,10 @@ NESS ChatBot은 사용자가 국민취업지원제도 수급 자격 및 유형�
 |------|------|
 | **Framework** | Next.js 16 (App Router) |
 | **Frontend** | React 19, Tailwind CSS 4, Framer Motion |
-| **AI Engine** | Google Generative AI (Gemini) |
+| **AI Engine** | Google Gemini (`@google/genai`) |
 | **Database** | MSSQL (mssql/tedious) |
 | **Auth** | JWT (jose), bcryptjs |
+| **Test** | Vitest |
 | **Deployment** | Ubuntu 24.04, Nginx, PM2, Standalone Build |
 
 ---
@@ -81,7 +89,13 @@ npm install
 npm run dev
 ```
 
-### 3. 프로덕션 빌드
+### 3. 테스트
+
+```bash
+npm test
+```
+
+### 4. 프로덕션 빌드
 
 ```bash
 npm run build
@@ -101,6 +115,28 @@ npm run start
 2. `.next/standalone` 결과물을 서버의 `/opt/next-app`으로 업로드
 3. `pm2 start server.js` 명령어로 서비스 구동
 4. Nginx를 통해 80포트 요청을 3000포트로 전달
+
+---
+
+## 운영
+
+### 리드 1년 경과 파기
+
+`leads`는 신청일로부터 1년 보관 후 파기한다 (`created_at`은 UTC 저장).
+
+애플리케이션이 `insertLead`/`getLeads` 호출 시 24시간에 한 번 자동으로 파기한다(`src/lib/leads.ts`의 `maybePurgeExpiredLeads`, 실패해도 요청 흐름을 막지 않고 다음 기회에 재시도). 트래픽이 없는 날을 대비해 `scripts/purge-expired-leads.sql`(리드 1년 + 관리자 접속기록 2년 삭제)을 서버 cron 또는 SQL Server Agent 작업으로 매일 03:00에 등록한다.
+
+```bash
+# 서버 cron 예시 (매일 03:00)
+0 3 * * * sqlcmd -S <서버> -d <DB> -i /opt/NESSChatBot/next-app/scripts/purge-expired-leads.sql
+```
+
+직접 실행이 필요하면 아래 SQL을 수동으로 실행해도 된다(UTC 기준).
+
+```sql
+DELETE FROM leads WHERE created_at < DATEADD(year, -1, SYSUTCDATETIME());
+DELETE FROM admin_access_logs WHERE created_at < DATEADD(year, -2, SYSUTCDATETIME());
+```
 
 ---
 

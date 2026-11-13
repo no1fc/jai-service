@@ -15,16 +15,20 @@ import {
     X,
     LayoutDashboard,
     Lock,
-    BarChart3
+    BarChart3,
+    Inbox,
+    ShieldCheck
 } from 'lucide-react';
 
 const SIDEBAR_ITEMS = [
     { name: '대시보드', href: '/admin', icon: LayoutDashboard, requiresSuperAdmin: false },
+    { name: '상담 신청', href: '/admin/leads', icon: Inbox, requiresSuperAdmin: false },
     { name: '사용량 통계', href: '/admin/usage', icon: BarChart3, requiresSuperAdmin: false },
     { name: '지점 등록', href: '/admin/branches', icon: Building2, requiresSuperAdmin: false },
     { name: '관리자 지정', href: '/admin/users', icon: Users, requiresSuperAdmin: true },
     { name: 'API 설정', href: '/admin/settings/api-keys', icon: KeyRound, requiresSuperAdmin: false },
     { name: '프롬프트 관리', href: '/admin/settings/prompts', icon: MessageSquareText, requiresSuperAdmin: true },
+    { name: '개인정보처리방침', href: '/admin/settings/privacy', icon: ShieldCheck, requiresSuperAdmin: true },
 ];
 
 export default function AdminLayout({
@@ -77,15 +81,15 @@ export default function AdminLayout({
                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
-            {/* 사이드바 */}
+            {/* 사이드바 (어두운 배경을 유지해 대비를 지킨다) */}
             <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-[var(--color-bg)] text-white transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-40 w-64 bg-text text-white transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:flex-shrink-0 flex flex-col
       `}>
-                <div className="h-20 flex items-center px-6 border-b border-[var(--color-border)]">
+                <div className="h-20 flex items-center px-6 border-b border-white/10">
                     <Link href="/admin" className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <span className="text-[var(--color-accent)]">NESS</span> <span className="text-[var(--color-text-secondary)] text-lg font-medium">관리자</span>
+                        <span className="text-[var(--color-accent)]">J.AI</span> <span className="text-white/60 text-lg font-medium">관리자</span>
                     </Link>
                 </div>
 
@@ -101,14 +105,14 @@ export default function AdminLayout({
                             return (
                                 <div
                                     key={item.href}
-                                    className="flex items-center justify-between px-4 py-3 rounded-[4px] text-sm font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-elevated)]/30 cursor-not-allowed"
+                                    className="flex items-center justify-between px-4 py-3 rounded-[4px] text-sm font-medium text-white/40 bg-white/5 cursor-not-allowed"
                                     title="최고 관리자 전용 메뉴입니다"
                                 >
                                     <div className="flex items-center gap-3 opacity-60">
                                         <item.icon size={18} />
                                         {item.name}
                                     </div>
-                                    <Lock size={14} className="text-[var(--color-text-muted)]" />
+                                    <Lock size={14} className="text-white/40" />
                                 </div>
                             );
                         }
@@ -122,7 +126,7 @@ export default function AdminLayout({
                   flex items-center gap-3 px-4 py-3 rounded-[4px] text-sm font-medium transition-colors
                   ${isActive
                                         ? 'bg-[var(--color-accent)] text-white'
-                                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-white'}
+                                        : 'text-white/70 hover:bg-white/10 hover:text-white'}
                 `}
                             >
                                 <item.icon size={18} />
@@ -132,10 +136,10 @@ export default function AdminLayout({
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-[var(--color-border)]">
+                <div className="p-4 border-t border-white/10">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 px-4 py-3 w-full rounded-[4px] text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-white transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 w-full rounded-[4px] text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors"
                     >
                         <LogOut size={18} />
                         로그아웃
@@ -147,7 +151,7 @@ export default function AdminLayout({
             <main className="flex-1 flex flex-col h-full w-full lg:w-[calc(100%-16rem)] overflow-hidden">
                 {/* 모바일 헤더용 여백 */}
                 <div className="h-16 lg:h-0 bg-[var(--color-bg-elevated)] lg:bg-transparent flex items-center px-6 lg:p-0">
-                    <span className="font-semibold text-[var(--color-text)] lg:hidden">NESS Admin</span>
+                    <span className="font-semibold text-[var(--color-text)] lg:hidden">J.AI Admin</span>
                 </div>
 
                 <div className="flex-1 p-6 lg:p-8 overflow-auto">

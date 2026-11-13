@@ -11,20 +11,22 @@ npm run start        # Start production server
 npm run lint         # ESLint
 ```
 
-No test framework is configured yet.
+```bash
+npm test             # Vitest (src/**/*.test.ts)
+```
 
 ## Architecture Overview
 
-NESS is a Korean employment support self-diagnosis AI chatbot (국민취업지원제도 자가진단). Users answer a series of questions, and a Gemini AI analyzes their eligibility for government employment support programs (Type 1/Type 2).
+J.AI (잡모아 AI 취업 도우미) helps surface potential 국민취업지원제도(국취) participants and convert them into 상담 신청 via AI tools: a Q&A bot (`/ask`), a rule-based eligibility self-diagnosis (`/chat`), and an AI self-introduction/competency check (`/career`). Leads flow into MSSQL `leads` for admin/counselor follow-up.
 
-**Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, MSSQL (mssql/tedious), Google Gemini API
+**Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, MSSQL (mssql/tedious), Google Gemini API (`@google/genai`), Vitest
 
 ### Request Flow
 
 1. User opens `/chat` → `ChatContainer` renders, calls `useChat()` hook
 2. `useChat` manages all chat state and calls `POST /api/chat` for each step
 3. `/api/chat` returns static questions sequentially (`phase: 'questioning'`), then on the final step triggers `phase: 'analyzing'`
-4. During analysis, `buildAnalysisPrompt()` in `prompts.ts` assembles the full system prompt with user answers, income tables, and scoring rules
+4. The `analyzing` phase is judged entirely by the `src/lib/eligibility/judge.ts` rule engine (12 questions, no AI); Gemini is only called afterward to generate a natural-language explanation of that verdict (`src/lib/eligibility/explain.ts`)
 5. `generateResponse()` in `gemini.ts` calls Gemini API with retry logic and multi-key fallback
 6. The AI returns a JSON diagnosis result (type, score, description, tips)
 7. `ResultCard` and `BranchCard` display the result with a nearby branch lookup via Kakao Maps
@@ -36,6 +38,11 @@ NESS is a Korean employment support self-diagnosis AI chatbot (국민취업지�
 - **`src/lib/db.ts`** — MSSQL connection pool (singleton) with tables: `branches`, `admin_users`, `system_settings`, `api_usage_logs`. Handles schema migration (column additions) on startup.
 - **`src/lib/gemini.ts`** — Gemini API client with rate-limit retry (429 → 30s wait) and multiple API key fallback.
 - **`src/middleware.ts`** — Protects `/admin/*` routes with JWT cookie validation. Role-based: `admin` sees subset of pages, `superadmin` sees all.
+- **`src/lib/eligibility/`** — 수급자격 모의진단 규칙 엔진(`judge.ts`, 12문항)과 AI 설명 생성(`explain.ts`).
+- **`src/lib/leads.ts`** — 상담 신청(`leads`) 테이블 CRUD (삽입·조회·상태 변경·리포트 저장).
+- **`src/lib/qna/`** — 국취 24시 Q&A 봇(`/ask`)용 지식 문서(`knowledge.ts`)와 프롬프트(`prompt.ts`).
+- **`src/lib/career/`** — AI 1분 자기소개서·역량 진단(`/career`)의 입출력 스키마와 프롬프트.
+- **`src/lib/report/`** — 상담사 AI 리포트 프롬프트·스키마. 이름·연락처는 AI에 전송하지 않음(`maskPhone` 등 참고).
 
 ### Admin Dashboard
 
@@ -43,11 +50,11 @@ Admin pages at `/admin/*` provide CRUD for branches, users, API keys, AI prompts
 
 ### Design System
 
-`DESIGN.md` in the project root defines the visual system (opencode.ai inspired). All UI work should reference this file. Key rules:
-- Background: `#201d1d` (warm dark), elevated: `#302c2c`
-- Accent: `#007aff` (blue), semantic colors follow Apple HIG
-- Border: `rgba(15, 0, 0, 0.12)`, radius: `4px` everywhere (inputs: `6px`)
-- No shadows, no backdrop-blur, no glassmorphism — flat surfaces only
+`DESIGN.md` in the project root defines the visual system (밝은 공공·커리어 서비스 톤, 모바일 우선). All UI work should reference this file. Key rules:
+- Light theme only: page bg `#f7f8fa`, card/input bg `#ffffff`, accent `#2563eb`
+- Radius: 8px buttons/chips, 10px inputs, 12px cards; shadow only on card hover (`shadow-sm`)
+- No glassmorphism/blur, no hardcoded colors — use tokens only
+- Font: Pretendard, 16px+ body on mobile, 44px min touch target, WCAG AA contrast
 - Design tokens are defined in `globals.css` under `@theme`
 
 ## Environment Variables

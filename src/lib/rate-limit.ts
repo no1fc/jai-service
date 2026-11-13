@@ -73,12 +73,19 @@ export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitR
 
 /**
  * 요청에서 IP 주소를 추출합니다.
- * 리버스 프록시(x-forwarded-for) 우선, 없으면 x-real-ip, 최종 fallback은 'unknown'.
+ * x-real-ip 우선, 없으면 x-forwarded-for의 첫 번째 값, 최종 fallback은 'unknown'.
+ *
+ * 주의: 이 판별은 Nginx 리버스 프록시가 `X-Real-IP $remote_addr`를 직접 설정해 주는
+ * 배포 환경(배포.md 참고)에서만 신뢰할 수 있다. 프록시 없이 앱에 직접 접근 가능하면
+ * 클라이언트가 두 헤더 모두 임의로 조작할 수 있으므로 신뢰해서는 안 된다.
  */
 export function getClientIp(request: Request): string {
+    const realIp = request.headers.get('x-real-ip');
+    if (realIp) return realIp.trim();
+
     const forwarded = request.headers.get('x-forwarded-for');
     if (forwarded) {
         return forwarded.split(',')[0].trim();
     }
-    return request.headers.get('x-real-ip') || 'unknown';
+    return 'unknown';
 }

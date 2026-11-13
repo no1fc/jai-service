@@ -2,31 +2,12 @@
 
 import { useState } from 'react';
 import { Search, MapPin } from 'lucide-react';
+import { SIDO_LIST } from '@/lib/regions';
 
 interface RegionSelectorProps {
     onSelect: (sido: string, sigungu: string) => void;
     disabled: boolean;
 }
-
-const SIDO_LIST = [
-    '서울특별시',
-    '부산광역시',
-    '대구광역시',
-    '인천광역시',
-    '광주광역시',
-    '대전광역시',
-    '울산광역시',
-    '세종특별자치시',
-    '경기도',
-    '강원특별자치도',
-    '충청북도',
-    '충청남도',
-    '전북특별자치도',
-    '전라남도',
-    '경상북도',
-    '경상남도',
-    '제주특별자치도',
-];
 
 const SIGUNGU_MAP: Record<string, string[]> = {
     '서울특별시': ['강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구', '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구', '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구'],
@@ -67,7 +48,7 @@ export default function RegionSelector({ onSelect, disabled }: RegionSelectorPro
     const sigunguList = selectedSido ? SIGUNGU_MAP[selectedSido] || [] : [];
 
     return (
-        <div className="mx-auto rounded-[4px] p-8 md:p-10 my-6 animate-reveal-up w-full max-w-lg bg-bg-elevated border border-[rgba(15,0,0,0.12)]">
+        <div className="mx-auto rounded-[var(--radius-card)] p-8 md:p-10 my-6 animate-reveal-up w-full max-w-lg bg-bg-elevated border border-border">
             <div className="flex items-center gap-3 mb-8">
                 <MapPin className="text-accent" size={18} />
                 <h3 className="text-text-secondary font-black text-xs uppercase tracking-[0.2em]">
@@ -80,7 +61,7 @@ export default function RegionSelector({ onSelect, disabled }: RegionSelectorPro
                     value={selectedSido}
                     onChange={(e) => handleSidoChange(e.target.value)}
                     disabled={disabled}
-                    className="w-full bg-bg border border-[rgba(15,0,0,0.12)] rounded-[6px] px-6 py-5 text-base text-text focus:outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
+                    className="w-full bg-bg border border-border rounded-[var(--radius-input)] px-6 py-5 text-base text-text focus:outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
                 >
                     <option value="" className="bg-bg">시/도 선택</option>
                     {SIDO_LIST.map((sido) => (
@@ -94,7 +75,7 @@ export default function RegionSelector({ onSelect, disabled }: RegionSelectorPro
                     value={selectedSigungu}
                     onChange={(e) => setSelectedSigungu(e.target.value)}
                     disabled={!selectedSido || disabled}
-                    className={`w-full bg-bg border border-[rgba(15,0,0,0.12)] rounded-[6px] px-6 py-5 text-base focus:outline-none focus:border-accent transition-colors appearance-none ${selectedSido ? 'text-text cursor-pointer' : 'text-text-muted cursor-not-allowed'}`}
+                    className={`w-full bg-bg border border-border rounded-[var(--radius-input)] px-6 py-5 text-base focus:outline-none focus:border-accent transition-colors appearance-none ${selectedSido ? 'text-text cursor-pointer' : 'text-text-muted cursor-not-allowed'}`}
                 >
                     <option value="" className="bg-bg">시/군/구 선택</option>
                     {sigunguList.map((sigungu) => (
@@ -108,10 +89,10 @@ export default function RegionSelector({ onSelect, disabled }: RegionSelectorPro
                     onClick={handleConfirm}
                     disabled={!canConfirm || disabled}
                     className={`
-                        w-full h-14 md:h-16 rounded-[4px] flex items-center justify-center gap-2 font-black text-base md:text-lg transition-colors mt-6
+                        w-full h-14 md:h-16 rounded-[var(--radius-default)] flex items-center justify-center gap-2 font-black text-base md:text-lg transition-colors mt-6
                         ${canConfirm && !disabled
-                            ? 'bg-accent text-text hover:bg-accent-hover'
-                            : 'bg-bg-elevated text-text-muted cursor-not-allowed border border-[rgba(15,0,0,0.12)]'
+                            ? 'bg-accent text-white hover:bg-accent-hover'
+                            : 'bg-bg-elevated text-text-muted cursor-not-allowed border border-border'
                         }
                     `}
                 >

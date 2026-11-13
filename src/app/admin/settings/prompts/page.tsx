@@ -26,7 +26,6 @@ interface Question {
     message: string;
     type?: string;
     choices: Choice[];
-    showIncomeTable: boolean;
 }
 
 export default function PromptsSettingsPage() {
@@ -56,6 +55,15 @@ export default function PromptsSettingsPage() {
             const data = await res.json();
             if (data.success && data.settings && data.promptCategories) {
                 setCategories(data.promptCategories);
+
+                // 현재 activeTab이 로드된 카테고리 목록에 없으면(예: 삭제된 'system_prompt')
+                // 첫 번째 카테고리로 이동한다. 그대로 두면 에디터 패널이 비어 보인다.
+                // (setState 콜백 형태로 최신 activeTab을 읽어 effect의 의존성 배열에 추가하지 않아도 된다.)
+                setActiveTab(current =>
+                    data.promptCategories.some((cat: PromptCategory) => cat.key === current)
+                        ? current
+                        : (data.promptCategories[0]?.key ?? '')
+                );
 
                 // 설정 데이터 매핑
                 const newSettings: Record<string, string> = {};
@@ -115,7 +123,7 @@ export default function PromptsSettingsPage() {
         const newCats = categories.filter(c => c.key !== catKey);
 
         // 화면 포커스가 지워진 탭에 있었다면 1번째로 이동
-        if (activeTab === catKey) setActiveTab(categories[0].key);
+        if (activeTab === catKey) setActiveTab(newCats[0]?.key ?? '');
 
         saveCategoryMetaAndData(newCats);
     };
@@ -161,15 +169,6 @@ export default function PromptsSettingsPage() {
 
     const handleTextChange = (val: string) => {
         setSettingsData(prev => ({ ...prev, [activeTab]: val }));
-    };
-
-    const injectVariable = (varName: string) => {
-        const text = settingsData['system_prompt'] || '';
-        // 커서 위치 파악은 복잡하므로 끝에 추가 (단순화)
-        setSettingsData(prev => ({
-            ...prev,
-            'system_prompt': text + (text.endsWith(' ') || text === '' ? '' : ' ') + `{{${varName}}}`
-        }));
     };
 
     const currentTabInfo = categories.find(t => t.key === activeTab);
@@ -264,22 +263,6 @@ export default function PromptsSettingsPage() {
                                             <Loader2 className="animate-spin w-6 h-6 text-[var(--color-accent)]" />
                                             불러오는 중...
                                         </div>
-                                    </div>
-                                )}
-
-                                {/* 시스템 프롬프트 전용 가이드 툴바 */}
-                                {activeTab === 'system_prompt' && (
-                                    <div className="bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] p-3 px-6 flex flex-wrap gap-2 items-center">
-                                        <span className="text-xs text-[var(--color-text-muted)] font-medium whitespace-nowrap mr-2">동적 변수(템플릿) 삽입:</span>
-                                        {categories.filter(c => c.key !== 'system_prompt' && c.type !== 'json').map(cat => (
-                                            <button
-                                                key={cat.key}
-                                                onClick={() => injectVariable(cat.key)}
-                                                className="px-2.5 py-1 bg-[var(--color-bg)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] border border-[var(--color-border)] rounded-[4px] text-xs font-mono text-[var(--color-text-secondary)] transition-colors"
-                                            >
-                                                {"{{"}{cat.key}{"}}"}
-                                            </button>
-                                        ))}
                                     </div>
                                 )}
 
@@ -392,7 +375,6 @@ function QuestionsEditor({ jsonString, onChange }: { jsonString: string, onChang
             id: 'new_question_' + Date.now(),
             message: '새 질문 내용',
             choices: [{ id: 'opt_1', label: '옵션 1', value: '옵션 1' }],
-            showIncomeTable: false
         }];
         updateGlobalJson(newQs);
         // 즉각 반영
@@ -490,16 +472,6 @@ function QuestionsEditor({ jsonString, onChange }: { jsonString: string, onChang
                                         onChange={e => handleQFieldChange(qIdx, 'id', e.target.value)}
                                         className="w-full px-3 py-2 border border-[var(--color-border)] rounded-[4px] bg-[var(--color-bg)] text-[var(--color-text)] focus:bg-[var(--color-bg-elevated)] text-sm"
                                     />
-                                </div>
-                                <div className="flex items-center gap-2 pt-2">
-                                    <input
-                                        type="checkbox"
-                                        id={`income_cb_${qIdx}`}
-                                        checked={q.showIncomeTable}
-                                        onChange={e => handleQFieldChange(qIdx, 'showIncomeTable', e.target.checked)}
-                                        className="w-4 h-4 text-[var(--color-accent)] rounded-[4px] border-[var(--color-border)]"
-                                    />
-                                    <label htmlFor={`income_cb_${qIdx}`} className="text-sm font-medium text-[var(--color-text-secondary)] cursor-pointer">채팅창에 소득기준표 버튼 노출하기</label>
                                 </div>
                             </div>
                         </div>

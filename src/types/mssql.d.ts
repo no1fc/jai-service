@@ -60,6 +60,7 @@ declare module 'mssql' {
     // SQL Types
     export const Int: any;
     export const NVarChar: (length?: number | typeof MAX) => any;
+    export const VarChar: (length?: number | typeof MAX) => unknown;
     export const Float: any;
     export const DateTime: any;
     export const MAX: unique symbol;
@@ -74,6 +75,7 @@ declare module 'mssql' {
         Request: typeof Request;
         Int: any;
         NVarChar: any;
+        VarChar: typeof VarChar;
         Float: any;
         DateTime: any;
         MAX: typeof MAX;

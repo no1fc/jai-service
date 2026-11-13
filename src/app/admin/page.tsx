@@ -45,7 +45,7 @@ export default async function AdminDashboardPage() {
             </div>
 
             <div className="bg-[var(--color-bg-elevated)] rounded-[4px] border border-[var(--color-border)] p-8">
-                <h2 className="text-xl font-semibold text-[var(--color-text)] mb-4">NESS 관리자 페이지에 오신 것을 환영합니다!</h2>
+                <h2 className="text-xl font-semibold text-[var(--color-text)] mb-4">J.AI 관리자 페이지에 오신 것을 환영합니다!</h2>
                 <p className="text-[var(--color-text-secondary)] mb-6 w-full max-w-2xl leading-relaxed">
                     좌측 메뉴를 통해 챗봇 관리에 필요한 다양한 설정들을 제어할 수 있습니다.<br />
                     아래에서 현재 시스템의 주요 통계 및 외부 API 연동 상태를 한눈에 확인할 수 있습니다.

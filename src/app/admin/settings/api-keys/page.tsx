@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { KeyRound, Loader2, Save, Trash2, Plus, Cpu, Map as MapIcon, Calculator } from 'lucide-react';
+import { KeyRound, Loader2, Save, Trash2, Plus, Cpu, Map as MapIcon, Calculator, AlertTriangle } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { GEMINI_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_ANALYSIS_MODEL, findGeminiModel } from '@/lib/gemini-models';
 
 interface ApiGroupProps {
     title: string;
@@ -102,21 +103,50 @@ function ApiGroup({ title, description, settingKey, icon, keys, onAdd, onDelete 
     );
 }
 
-const GEMINI_PRICING: Record<string, { label: string, inputRate: number, outputRate: number }> = {
-    'gemini-3.1-pro-preview': { label: 'Gemini 3.1 Pro Preview', inputRate: 2.00, outputRate: 12.00 },
-    'gemini-3.1-flash-lite-preview': { label: 'Gemini 3.1 Flash-Lite Preview', inputRate: 0.25, outputRate: 1.50 },
-    'gemini-3-flash-preview': { label: 'Gemini 3 Flash Preview', inputRate: 0.50, outputRate: 3.00 },
-    'gemini-2.5-pro': { label: 'Gemini 2.5 Pro', inputRate: 1.25, outputRate: 10.00 },
-    'gemini-2.5-flash': { label: 'Gemini 2.5 Flash', inputRate: 0.30, outputRate: 2.50 },
-    'gemini-2.5-flash-lite': { label: 'Gemini 2.5 Flash-Lite', inputRate: 0.10, outputRate: 0.40 },
-};
+/**
+ * 모델 선택 옵션 라벨: preview는 "(미리보기)", deprecated는 "(종료 예정)" 표시를 붙인다.
+ * @param id - 모델 id
+ */
+function modelOptionLabel(id: string): string {
+    const info = findGeminiModel(id);
+    if (!info) return `${id} (지원 종료)`;
+    if (info.status === 'preview') return `${info.label} (미리보기)`;
+    if (info.status === 'deprecated') return `${info.label} (종료 예정)`;
+    return info.label;
+}
+
+/**
+ * 저장된 모델이 종료 예정이거나 카탈로그에 없을 때 경고를 보여준다.
+ * 카탈로그에 없는 모델은 서버(resolveGeminiModel)가 기본 모델로 대체해 호출한다.
+ */
+function ModelWarning({ id, fallback }: { id: string; fallback: string }) {
+    const info = findGeminiModel(id);
+    if (id && !info) {
+        return (
+            <p className="text-xs text-[var(--color-danger)] flex items-center gap-1 mt-1">
+                <AlertTriangle size={14} />
+                지원이 종료된 모델입니다. 현재는 기본 모델({fallback})로 응답합니다. 다른 모델을 선택해 저장하세요.
+            </p>
+        );
+    }
+    if (info?.status === 'deprecated') {
+        return (
+            <p className="text-xs text-[var(--color-danger)] flex items-center gap-1 mt-1">
+                <AlertTriangle size={14} />
+                이 모델은 2026-12-01 종료 예정입니다. 다른 모델로 변경하세요.
+            </p>
+        );
+    }
+    return null;
+}
 
 export default function ApiKeysSettingsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [geminiKeys, setGeminiKeys] = useState<string[]>([]);
     const [kakaoKeys, setKakaoKeys] = useState<string[]>([]);
-    const [geminiModel, setGeminiModel] = useState<string>('gemini-2.5-flash');
-    const [isSavingModel, setIsSavingModel] = useState(false);
+    const [geminiModel, setGeminiModel] = useState<string>(DEFAULT_CHAT_MODEL);
+    const [geminiAnalysisModel, setGeminiAnalysisModel] = useState<string>(DEFAULT_ANALYSIS_MODEL);
+    const [savingModelKey, setSavingModelKey] = useState<string | null>(null);
     const [inputTokens, setInputTokens] = useState<number>(1);
     const [outputTokens, setOutputTokens] = useState<number>(1);
 
@@ -147,6 +177,9 @@ export default function ApiKeysSettingsPage() {
                 if (data.settings.gemini_model_name) {
                     setGeminiModel(data.settings.gemini_model_name);
                 }
+                if (data.settings.gemini_analysis_model_name) {
+                    setGeminiAnalysisModel(data.settings.gemini_analysis_model_name);
+                }
             }
         } catch (error) {
             logger.error('Failed to fetch settings:', error);
@@ -155,16 +188,21 @@ export default function ApiKeysSettingsPage() {
         }
     };
 
-    const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    /**
+     * 일반/분석 모델 선택 변경을 설정 API에 저장한다.
+     * @param settingKey - 'gemini_model_name' 또는 'gemini_analysis_model_name'
+     * @param setter - 해당 모델의 React state setter
+     */
+    const handleModelChange = (settingKey: string, setter: (v: string) => void) => async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newModel = e.target.value;
-        setGeminiModel(newModel);
-        setIsSavingModel(true);
+        setter(newModel);
+        setSavingModelKey(settingKey);
 
         try {
             const res = await fetch('/api/admin/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'gemini_model_name', value: newModel })
+                body: JSON.stringify({ key: settingKey, value: newModel })
             });
             const data = await res.json();
 
@@ -175,7 +213,7 @@ export default function ApiKeysSettingsPage() {
             logger.error('Model change error:', error);
             alert('설정 저장 중 네트워크 오류가 발생했습니다.');
         } finally {
-            setIsSavingModel(false);
+            setSavingModelKey(null);
         }
     };
 
@@ -241,40 +279,70 @@ export default function ApiKeysSettingsPage() {
             <div className="mt-8">
                 {/* Gemini Model Selection & Cost Calculator */}
                 <div className="bg-[var(--color-bg-elevated)] rounded-[4px] border border-[var(--color-border)] overflow-hidden mb-8">
-                    <div className="p-6 bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="p-6 bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] space-y-5">
                         <div>
                             <div className="flex items-center gap-2 text-[var(--color-text)] font-bold text-lg mb-1">
                                 <Cpu className="text-[var(--color-accent)]" size={22} />
                                 Gemini 생성 모델 선택
                             </div>
-                            <p className="text-[var(--color-text-muted)] text-sm">기본적으로 사용할 Gemini AI 버전을 선택하고 비용을 예상해보세요.</p>
+                            <p className="text-[var(--color-text-muted)] text-sm">용도별로 사용할 Gemini AI 모델을 선택하고 비용을 예상해보세요.</p>
                         </div>
-                        <div className="flex items-center">
-                            {isSavingModel && <span className="text-sm text-[var(--color-accent)] mr-3 flex items-center"><Loader2 className="w-4 h-4 animate-spin mr-1" /> 저장 중...</span>}
-                            <select
-                                value={geminiModel}
-                                onChange={handleModelChange}
-                                disabled={isSavingModel}
-                                className="px-4 py-2 border border-[var(--color-accent)]/30 rounded-[6px] focus:border-[var(--color-accent)] outline-none transition-all text-[var(--color-text)] bg-[var(--color-bg-elevated)] font-medium cursor-pointer"
-                            >
-                                <option value="" disabled className="text-[var(--color-text-muted)]">모델을 선택하세요</option>
-                                {Object.entries(GEMINI_PRICING).map(([key, info]) => (
-                                    <option key={key} value={key}>{info.label}</option>
-                                ))}
-                                {/* 이전 모델 호환성 유지 */}
-                                {!Object.keys(GEMINI_PRICING).includes(geminiModel) && geminiModel !== '' && (
-                                    <option value={geminiModel}>{geminiModel} (레거시)</option>
-                                )}
-                            </select>
+
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <p className="text-sm font-medium text-[var(--color-text)]">일반 응답 모델 (Q&A·모의진단 설명)</p>
+                                <ModelWarning id={geminiModel} fallback={DEFAULT_CHAT_MODEL} />
+                            </div>
+                            <div className="flex items-center">
+                                {savingModelKey === 'gemini_model_name' && <span className="text-sm text-[var(--color-accent)] mr-3 flex items-center"><Loader2 className="w-4 h-4 animate-spin mr-1" /> 저장 중...</span>}
+                                <select
+                                    value={geminiModel}
+                                    onChange={handleModelChange('gemini_model_name', setGeminiModel)}
+                                    disabled={savingModelKey !== null}
+                                    className="px-4 py-2 border border-[var(--color-accent)]/30 rounded-[6px] focus:border-[var(--color-accent)] outline-none transition-all text-[var(--color-text)] bg-[var(--color-bg-elevated)] font-medium cursor-pointer"
+                                >
+                                    {GEMINI_MODELS.map((info) => (
+                                        <option key={info.id} value={info.id}>{modelOptionLabel(info.id)}</option>
+                                    ))}
+                                    {!findGeminiModel(geminiModel) && geminiModel !== '' && (
+                                        <option value={geminiModel}>{modelOptionLabel(geminiModel)}</option>
+                                    )}
+                                </select>
+                            </div>
+                        </div>
+
+                        <hr className="border-[var(--color-border)]" />
+
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <p className="text-sm font-medium text-[var(--color-text)]">분석 모델 (자기소개서·상담사 리포트)</p>
+                                <ModelWarning id={geminiAnalysisModel} fallback={DEFAULT_ANALYSIS_MODEL} />
+                            </div>
+                            <div className="flex items-center">
+                                {savingModelKey === 'gemini_analysis_model_name' && <span className="text-sm text-[var(--color-accent)] mr-3 flex items-center"><Loader2 className="w-4 h-4 animate-spin mr-1" /> 저장 중...</span>}
+                                <select
+                                    value={geminiAnalysisModel}
+                                    onChange={handleModelChange('gemini_analysis_model_name', setGeminiAnalysisModel)}
+                                    disabled={savingModelKey !== null}
+                                    className="px-4 py-2 border border-[var(--color-accent)]/30 rounded-[6px] focus:border-[var(--color-accent)] outline-none transition-all text-[var(--color-text)] bg-[var(--color-bg-elevated)] font-medium cursor-pointer"
+                                >
+                                    {GEMINI_MODELS.map((info) => (
+                                        <option key={info.id} value={info.id}>{modelOptionLabel(info.id)}</option>
+                                    ))}
+                                    {!findGeminiModel(geminiAnalysisModel) && geminiAnalysisModel !== '' && (
+                                        <option value={geminiAnalysisModel}>{modelOptionLabel(geminiAnalysisModel)}</option>
+                                    )}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Cost Calculator Section */}
-                    {GEMINI_PRICING[geminiModel] && (
+                    {/* Cost Calculator Section (일반 응답 모델 단가 기준) */}
+                    {findGeminiModel(geminiModel) && (
                         <div className="p-6 bg-[var(--color-bg-elevated)]">
                             <div className="flex items-center gap-2 text-[var(--color-text-secondary)] font-semibold mb-4">
                                 <Calculator className="text-[var(--color-success)]" size={18} />
-                                예상 비용 계산기 (100만 토큰 기준 단가적용)
+                                예상 비용 계산기 (일반 응답 모델, 100만 토큰 기준 단가적용)
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
@@ -290,7 +358,7 @@ export default function ApiKeysSettingsPage() {
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] text-sm">M</span>
                                     </div>
-                                    <p className="text-xs text-[var(--color-text-muted)] mt-1">단가: ${GEMINI_PRICING[geminiModel].inputRate.toFixed(2)}</p>
+                                    <p className="text-xs text-[var(--color-text-muted)] mt-1">단가: ${findGeminiModel(geminiModel)!.inputRate.toFixed(2)}</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm text-[var(--color-text-secondary)] mb-1">예상 월별 출력 (백만 토큰)</label>
@@ -305,12 +373,12 @@ export default function ApiKeysSettingsPage() {
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] text-sm">M</span>
                                     </div>
-                                    <p className="text-xs text-[var(--color-text-muted)] mt-1">단가: ${GEMINI_PRICING[geminiModel].outputRate.toFixed(2)}</p>
+                                    <p className="text-xs text-[var(--color-text-muted)] mt-1">단가: ${findGeminiModel(geminiModel)!.outputRate.toFixed(2)}</p>
                                 </div>
                                 <div className="bg-[var(--color-success)]/10 border border-[var(--color-success)]/20 rounded-[4px] p-4 flex flex-col justify-center items-center">
                                     <span className="text-sm font-medium text-[var(--color-success)] mb-1">월별 예상 환산 금액</span>
                                     <span className="text-2xl font-bold text-[var(--color-success)]">
-                                        ${((inputTokens * GEMINI_PRICING[geminiModel].inputRate) + (outputTokens * GEMINI_PRICING[geminiModel].outputRate)).toFixed(2)}
+                                        ${((inputTokens * findGeminiModel(geminiModel)!.inputRate) + (outputTokens * findGeminiModel(geminiModel)!.outputRate)).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -320,7 +388,7 @@ export default function ApiKeysSettingsPage() {
 
                 <ApiGroup
                     title="Google Gemini API (AI)"
-                    description="NESS 챗봇 구동 및 AI 텍스트 생성에 사용되는 구글 제미나이 API Key 배열입니다."
+                    description="J.AI 구동 및 AI 텍스트 생성에 사용되는 구글 제미나이 API Key 배열입니다."
                     settingKey="gemini_api_keys"
                     icon={<Cpu className="text-[var(--color-accent)]" size={22} />}
                     keys={geminiKeys}
