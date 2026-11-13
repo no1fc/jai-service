@@ -1,8 +1,9 @@
 /**
  * `/career` 화면 상태 머신 — STAR 입력 → 공통 16문항(4페이지) → 맞춤 4문항(1페이지, 없으면 건너뜀) → 결과.
- * 페이지 전환·STAR 유효성·제출 요청 구성 등 분기 로직은 아래 순수 함수로 뺀다(테스트: use-career-flow.test.ts).
+ * 페이지 전환·STAR 유효성·제출 요청 구성 등 분기 로직은 아래 순수 함수로, 경험·문항 응답·맞춤 문항
+ * 요청 상태는 각각의 작은 하위 훅으로 뺀다(테스트: use-career-flow.test.ts).
  */
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { careerRequestSchema, starSchema, type CareerRequest, type CareerResult, type CompetencyKey, type JobItem, type Star } from '@/lib/career/schema';
 import { COMMON_ITEMS, ITEMS_PER_PAGE, type CareerItem } from '@/lib/career/items';
 
@@ -136,6 +137,89 @@ async function submitCareerRequest(input: Parameters<typeof buildCareerRequestPa
     }
 }
 
+interface UseExperiencesResult {
+    experiences: Star[];
+    setExperience: (index: number, star: Star) => void;
+    addExperience: () => void;
+    removeExperience: (index: number) => void;
+}
+
+/** STAR 경험 목록(최대 2개) 상태만 다루는 작은 훅. */
+function useExperiences(): UseExperiencesResult {
+    const [experiences, setExperiences] = useState<Star[]>([{ ...EMPTY_STAR }]);
+
+    function setExperience(index: number, star: Star) {
+        setExperiences(prev => prev.map((e, i) => (i === index ? star : e)));
+    }
+
+    function addExperience() {
+        setExperiences(prev => (prev.length >= MAX_EXPERIENCES ? prev : [...prev, { ...EMPTY_STAR }]));
+    }
+
+    function removeExperience(index: number) {
+        setExperiences(prev => prev.filter((_, i) => i !== index));
+    }
+
+    return { experiences, setExperience, addExperience, removeExperience };
+}
+
+interface UseItemRatingsResult {
+    itemRatings: Record<string, number>;
+    rateItem: (id: string, value: number) => void;
+    clearJobRatings: () => void;
+}
+
+/** 문항 응답(공통+맞춤) 상태만 다루는 작은 훅. `clearJobRatings`는 맞춤 문항을 다시 요청할 때 그 응답만 비운다. */
+function useItemRatings(): UseItemRatingsResult {
+    const [itemRatings, setItemRatings] = useState<Record<string, number>>({});
+
+    function rateItem(id: string, value: number) {
+        setItemRatings(prev => ({ ...prev, [id]: value }));
+    }
+
+    return {
+        itemRatings,
+        rateItem,
+        clearJobRatings: () => setItemRatings(clearJobRatings),
+    };
+}
+
+interface UseJobItemsResult {
+    jobItems: JobItem[];
+    jobItemsStatus: JobItemsStatus;
+    promiseRef: RefObject<Promise<JobItem[]> | null>;
+    requestJobItems: () => Promise<JobItem[]>;
+    reset: () => void;
+}
+
+/** 희망직무 맞춤 문항 요청(목록·진행 상태·중복 요청 방지)만 다루는 작은 훅. */
+function useJobItems(desiredJob: string): UseJobItemsResult {
+    const [jobItems, setJobItems] = useState<JobItem[]>([]);
+    const [jobItemsStatus, setJobItemsStatus] = useState<JobItemsStatus>('idle');
+    const promiseRef = useRef<Promise<JobItem[]> | null>(null);
+    // 희망직무를 바꿔 맞춤 문항을 다시 요청했을 때, 먼저 보낸(이미 낡은) 요청의 응답이 나중에 와서
+    // 최신 응답을 덮어쓰지 않도록 요청마다 번호를 매겨 마지막 요청의 응답만 반영한다.
+    const requestIdRef = useRef(0);
+
+    async function requestJobItems(): Promise<JobItem[]> {
+        const requestId = ++requestIdRef.current;
+        setJobItemsStatus('loading');
+        const items = await fetchJobItems(desiredJob);
+        if (requestIdRef.current === requestId) {
+            setJobItems(items);
+            setJobItemsStatus('ready');
+        }
+        return items;
+    }
+
+    function reset() {
+        setJobItems([]);
+        setJobItemsStatus('idle');
+    }
+
+    return { jobItems, jobItemsStatus, promiseRef, requestJobItems, reset };
+}
+
 interface UseCareerFlowResult {
     step: CareerStep;
     desiredJob: string;
@@ -162,60 +246,27 @@ interface UseCareerFlowResult {
 }
 
 /**
- * `/career` 화면 상태와 전환 핸들러를 묶은 훅. 분기 판단·요청 구성은 위 순수 함수에 맡기고
- * 여기서는 그 결과에 따라 상태만 갈아 끼운다.
+ * `/career` 화면 상태와 전환 핸들러를 묶은 훅. 경험·문항 응답·맞춤 문항 요청은 위 하위 훅에,
+ * 분기 판단·요청 구성은 모듈 순수 함수에 맡기고 여기서는 그 결과에 따라 단계만 갈아 끼운다.
  */
 export function useCareerFlow(): UseCareerFlowResult {
     const [step, setStep] = useState<CareerStep>('input');
     const [desiredJob, setDesiredJob] = useState('');
-    const [experiences, setExperiences] = useState<Star[]>([{ ...EMPTY_STAR }]);
+    const { experiences, setExperience, addExperience, removeExperience } = useExperiences();
     const [strengthNote, setStrengthNote] = useState('');
-    const [itemRatings, setItemRatings] = useState<Record<string, number>>({});
-    const [jobItems, setJobItems] = useState<JobItem[]>([]);
-    const [jobItemsStatus, setJobItemsStatus] = useState<JobItemsStatus>('idle');
+    const { itemRatings, rateItem, clearJobRatings } = useItemRatings();
+    const { jobItems, jobItemsStatus, promiseRef: jobItemsPromiseRef, requestJobItems, reset: resetJobItems } = useJobItems(desiredJob);
     const [commonPage, setCommonPage] = useState(0);
     const [result, setResult] = useState<CareerResult | null>(null);
     const [competencyScores, setCompetencyScores] = useState<Record<CompetencyKey, number> | null>(null);
     const [error, setError] = useState('');
     // 버튼 연속 클릭 등으로 submit()이 중복 실행되는 것을 막는 즉시 체크용 플래그
     const inFlightRef = useRef(false);
-    const jobItemsPromiseRef = useRef<Promise<JobItem[]> | null>(null);
-    // 희망직무를 바꿔 맞춤 문항을 다시 요청했을 때, 먼저 보낸(이미 낡은) 요청의 응답이 나중에 와서
-    // 최신 응답을 덮어쓰지 않도록 요청마다 번호를 매겨 마지막 요청의 응답만 반영한다.
-    const jobItemsRequestIdRef = useRef(0);
-
-    function setExperience(index: number, star: Star) {
-        setExperiences(prev => prev.map((e, i) => (i === index ? star : e)));
-    }
-
-    function addExperience() {
-        setExperiences(prev => (prev.length >= MAX_EXPERIENCES ? prev : [...prev, { ...EMPTY_STAR }]));
-    }
-
-    function removeExperience(index: number) {
-        setExperiences(prev => prev.filter((_, i) => i !== index));
-    }
-
-    function rateItem(id: string, value: number) {
-        setItemRatings(prev => ({ ...prev, [id]: value }));
-    }
-
-    async function requestJobItems(): Promise<JobItem[]> {
-        const requestId = ++jobItemsRequestIdRef.current;
-        setJobItemsStatus('loading');
-        const items = await fetchJobItems(desiredJob);
-        if (jobItemsRequestIdRef.current === requestId) {
-            setJobItems(items);
-            setJobItemsStatus('ready');
-        }
-        return items;
-    }
 
     /** 희망직무 맞춤 문항을 백그라운드로 다시 요청한다. 이전 직무의 맞춤 문항·점수는 즉시 비운다. */
     function goToItems() {
-        setJobItems([]);
-        setJobItemsStatus('idle');
-        setItemRatings(clearJobRatings);
+        resetJobItems();
+        clearJobRatings();
         jobItemsPromiseRef.current = requestJobItems();
         setCommonPage(0);
         setStep('items');
