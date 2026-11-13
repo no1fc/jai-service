@@ -36,7 +36,8 @@ const validResult = {
     coverLetter: '자기소개서 초안입니다.',
     strengths: ['꼼꼼함'],
     gaps: ['발표 경험 부족'],
-    recommendedPrograms: ['취업역량 강화 프로그램'],
+    // '없는프로그램'은 허용 목록(ALL_PROGRAMS) 밖이므로 서버가 제거해야 한다
+    recommendedPrograms: ['취업역량 강화 프로그램', '없는프로그램'],
     competencyDetails,
     jobFit: '직무 적합도 요약입니다.',
 };
@@ -86,6 +87,8 @@ describe('POST /api/career', () => {
 
         const jobKnowledge = json.result.competencyDetails.find((d: { key: string }) => d.key === 'jobKnowledge');
         expect(jobKnowledge.programs).toEqual(['국민내일배움카드 직업훈련']);
+
+        expect(json.result.recommendedPrograms).toEqual(['취업역량 강화 프로그램']);
 
         expect(generateResponse).toHaveBeenCalledTimes(1);
     });

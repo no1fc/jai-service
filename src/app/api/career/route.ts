@@ -8,7 +8,7 @@ import { formatZodError } from '@/lib/validations';
 import { careerRequestSchema, careerResultSchema, COMPETENCIES, type CompetencyKey } from '@/lib/career/schema';
 import { buildCareerPrompt } from '@/lib/career/prompt';
 import { COMMON_ITEMS, scoreCompetencies, levelOf, type CompetencyLevel } from '@/lib/career/items';
-import { filterPrograms } from '@/lib/career/programs';
+import { ALL_PROGRAMS, filterPrograms } from '@/lib/career/programs';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
             if (parsedResult.success) {
                 const result = {
                     ...parsedResult.data,
+                    // 전체 추천 프로그램도 역량별 programs와 같은 신뢰 경계: 허용 목록 밖 값은 서버가 제거한다(순서 유지, 중복 제거)
+                    recommendedPrograms: Array.from(new Set(parsedResult.data.recommendedPrograms.filter(p => ALL_PROGRAMS.includes(p)))),
                     competencyDetails: parsedResult.data.competencyDetails.map(detail => ({
                         ...detail,
                         score: scores[detail.key],
