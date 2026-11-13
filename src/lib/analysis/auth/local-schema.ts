@@ -13,11 +13,16 @@ export const LOCK_MINUTES = 15;
 export const emailSchema = z.string().trim().toLowerCase().max(EMAIL_MAX)
     .regex(/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/, '이메일 형식이 올바르지 않습니다.');
 
+// bcrypt는 비밀번호를 UTF-8 바이트로 해시하고 72바이트를 넘으면 뒷부분을 자른다(알려진 한계).
+// PASSWORD_MAX(64)는 문자 수 기준이라 이모지·한글 등 멀티바이트 문자가 섞이면 72바이트를 넘을 수 있어 별도 검사한다.
+const BCRYPT_MAX_BYTES = 72;
+
 export const passwordSchema = z.string()
     .min(PASSWORD_MIN, '비밀번호는 8자 이상이어야 합니다.')
     .max(PASSWORD_MAX)
     .regex(/[a-z]/i, '영문을 포함해 주세요.')
-    .regex(/\d/, '숫자를 포함해 주세요.');
+    .regex(/\d/, '숫자를 포함해 주세요.')
+    .refine(p => new TextEncoder().encode(p).length <= BCRYPT_MAX_BYTES, '비밀번호가 너무 깁니다.');
 
 export const signupSchema = z.object({
     email: emailSchema,

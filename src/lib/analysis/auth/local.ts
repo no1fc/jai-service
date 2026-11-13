@@ -18,7 +18,6 @@ export {
     loginSchema,
     changePasswordSchema,
 } from './local-schema';
-import { LOCK_MINUTES, LOCK_THRESHOLD } from './local-schema';
 
 const BCRYPT_COST = 10;
 const TEMP_PASSWORD_BYTES = 9; // base64url 인코딩 시 12자
@@ -26,13 +25,6 @@ const TEMP_PASSWORD_BYTES = 9; // base64url 인코딩 시 12자
 /** 계정이 현재 잠겨 있는지(locked_until이 미래 시각인지) 판정한다. */
 export function isLocked(lockedUntil: Date | null, now: Date): boolean {
     return lockedUntil !== null && lockedUntil.getTime() > now.getTime();
-}
-
-/** 로그인 실패 후 다음 상태를 계산한다 — LOCK_THRESHOLD번째 실패에서 LOCK_MINUTES분 잠금. */
-export function nextFailureState(failedAttempts: number, now: Date): { failedAttempts: number; lockedUntil: Date | null } {
-    const next = failedAttempts + 1;
-    const lockedUntil = next >= LOCK_THRESHOLD ? new Date(now.getTime() + LOCK_MINUTES * 60 * 1000) : null;
-    return { failedAttempts: next, lockedUntil };
 }
 
 /**

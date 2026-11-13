@@ -6,6 +6,7 @@ import { getPool } from '@/lib/db';
 import {
     CREATE_LOCAL_USER_SQL,
     FIND_LOCAL_USER_BY_EMAIL_SQL,
+    GET_USER_BY_ID_SQL,
     RECORD_LOGIN_FAILURE_SQL,
     RECORD_LOGIN_SUCCESS_SQL,
     UPDATE_PASSWORD_SQL,
@@ -91,10 +92,17 @@ describe('getUserById', () => {
         expect(log[0].inputs).toEqual([{ name: 'id', type: sql.Int, value: 1 }]);
     });
     it('행이 있으면 그대로 반환한다', async () => {
-        const row = { id: 1, provider: 'kakao', provider_id: '1', email: null };
+        const row = { id: 1, provider: 'kakao', provider_id: '1', email: null, must_change_password: false };
         const { pool } = makeFakePool([[row]]);
         vi.mocked(getPool).mockResolvedValue(pool);
         expect(await getUserById(1)).toEqual(row);
+    });
+    it('GET_USER_BY_ID_SQL은 password_hash·failed_attempts·locked_until을 노출하지 않는다(SELECT * 금지)', () => {
+        expect(GET_USER_BY_ID_SQL).not.toContain('*');
+        expect(GET_USER_BY_ID_SQL).not.toContain('password_hash');
+        expect(GET_USER_BY_ID_SQL).not.toContain('failed_attempts');
+        expect(GET_USER_BY_ID_SQL).not.toContain('locked_until');
+        expect(GET_USER_BY_ID_SQL).toContain('must_change_password');
     });
 });
 
@@ -118,17 +126,24 @@ describe('deleteUser', () => {
 // ---- 자체(이메일/비밀번호) 계정 ---------------------------------------------------------
 
 describe('로컬 계정 SQL 상수', () => {
-    it("CREATE_LOCAL_USER_SQL은 'local'과 @email을 포함한다", () => {
+    it("CREATE_LOCAL_USER_SQL은 'local'·@email·password_updated_at을 포함한다", () => {
         expect(CREATE_LOCAL_USER_SQL).toContain("'local'");
         expect(CREATE_LOCAL_USER_SQL).toContain('@email');
+        expect(CREATE_LOCAL_USER_SQL).toContain('password_updated_at');
     });
     it("FIND_LOCAL_USER_BY_EMAIL_SQL은 'local'과 @email을 포함한다", () => {
         expect(FIND_LOCAL_USER_BY_EMAIL_SQL).toContain("'local'");
         expect(FIND_LOCAL_USER_BY_EMAIL_SQL).toContain('@email');
     });
-    it('RECORD_LOGIN_FAILURE_SQL은 failed_attempts·locked_until을 포함한다', () => {
+    it('RECORD_LOGIN_FAILURE_SQL은 OUTPUT·CASE로 원자적으로 failed_attempts·locked_until을 계산한다', () => {
+        expect(RECORD_LOGIN_FAILURE_SQL).toContain('OUTPUT INSERTED.failed_attempts, INSERTED.locked_until');
+        expect(RECORD_LOGIN_FAILURE_SQL).toContain('CASE');
         expect(RECORD_LOGIN_FAILURE_SQL).toContain('failed_attempts');
         expect(RECORD_LOGIN_FAILURE_SQL).toContain('locked_until');
+        expect(RECORD_LOGIN_FAILURE_SQL).toContain('@lockThreshold');
+        expect(RECORD_LOGIN_FAILURE_SQL).toContain('@lockMinutes');
+        // TINYINT 오버플로 클램프
+        expect(RECORD_LOGIN_FAILURE_SQL).toContain('255');
     });
     it('RECORD_LOGIN_SUCCESS_SQL은 failed_attempts·locked_until·last_login_at을 초기화한다', () => {
         expect(RECORD_LOGIN_SUCCESS_SQL).toContain('failed_attempts = 0');
@@ -161,6 +176,12 @@ describe('createLocalUser', () => {
             { name: 'email', type: sql.VarChar(100), value: 'a@b.com' },
             { name: 'passwordHash', type: sql.VarChar(100), value: 'HASH' },
         ]);
+    });
+    it('이메일을 trim·소문자로 정규화해서 바인딩한다(호출 측이 빠뜨려도 저장소에서 막음)', async () => {
+        const { pool, log } = makeFakePool([[{ id: 6 }]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await createLocalUser('  Foo@BAR.com  ', 'HASH');
+        expect(log[0].inputs.find(i => i.name === 'email')).toEqual({ name: 'email', type: sql.VarChar(100), value: 'foo@bar.com' });
     });
     it('UNIQUE 위반(2627)이면 duplicate를 반환한다', async () => {
         const pool = {
@@ -202,19 +223,31 @@ describe('findLocalUserByEmail', () => {
         vi.mocked(getPool).mockResolvedValue(pool);
         expect(await findLocalUserByEmail('x@y.com')).toBeNull();
     });
+    it('이메일을 trim·소문자로 정규화해서 바인딩한다', async () => {
+        const { pool, log } = makeFakePool([[]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await findLocalUserByEmail('  Foo@BAR.com  ');
+        expect(log[0].inputs).toEqual([{ name: 'email', type: sql.VarChar(100), value: 'foo@bar.com' }]);
+    });
 });
 
 describe('recordLoginFailure', () => {
-    it('id·failedAttempts·lockedUntil을 바인딩한다', async () => {
-        const { pool, log } = makeFakePool([[]]);
-        vi.mocked(getPool).mockResolvedValue(pool);
+    it('id·lockThreshold·lockMinutes를 바인딩하고 OUTPUT으로 받은 값을 그대로 반환한다', async () => {
         const lockedUntil = new Date('2026-01-01T00:15:00Z');
-        await recordLoginFailure(1, 5, lockedUntil);
+        const { pool, log } = makeFakePool([[{ failed_attempts: 5, locked_until: lockedUntil }]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        const result = await recordLoginFailure(1);
+        expect(result).toEqual({ failedAttempts: 5, lockedUntil });
         expect(log[0].inputs).toEqual([
             { name: 'id', type: sql.Int, value: 1 },
-            { name: 'failedAttempts', type: sql.TinyInt, value: 5 },
-            { name: 'lockedUntil', type: sql.DateTime2, value: lockedUntil },
+            { name: 'lockThreshold', type: sql.Int, value: 5 },
+            { name: 'lockMinutes', type: sql.Int, value: 15 },
         ]);
+    });
+    it('잠기지 않은 상태의 결과(locked_until=null)도 그대로 전달한다', async () => {
+        const { pool } = makeFakePool([[{ failed_attempts: 2, locked_until: null }]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        expect(await recordLoginFailure(1)).toEqual({ failedAttempts: 2, lockedUntil: null });
     });
 });
 

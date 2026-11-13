@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
     DUMMY_HASH,
-    LOCK_MINUTES,
-    LOCK_THRESHOLD,
     changePasswordSchema,
     emailSchema,
     generateTempPassword,
     hashPassword,
     isLocked,
     loginSchema,
-    nextFailureState,
     passwordSchema,
     signupSchema,
     verifyPassword,
@@ -40,6 +37,14 @@ describe('passwordSchema', () => {
     });
     it('영문+숫자 8자 이상이면 허용한다', () => {
         expect(passwordSchema.safeParse('abcd1234').success).toBe(true);
+    });
+    it('UTF-8 바이트 기준 72바이트를 넘으면 거부한다(멀티바이트 문자 포함)', () => {
+        // '가'는 UTF-8로 3바이트 → 20자(60바이트) + 영문2자+숫자2자(4바이트) = 64바이트로 PASSWORD_MAX(64자)는 통과하지만 바이트 검사로 거부돼야 함
+        const multibyte = `${'가'.repeat(20)}ab12${'가'.repeat(4)}`;
+        expect(multibyte.length).toBeLessThanOrEqual(64);
+        expect(new TextEncoder().encode(multibyte).length).toBeGreaterThan(72);
+        const result = passwordSchema.safeParse(multibyte);
+        expect(result.success).toBe(false);
     });
 });
 
@@ -80,18 +85,6 @@ describe('isLocked', () => {
     });
     it('과거 시각이면 false', () => {
         expect(isLocked(new Date(now.getTime() - 1000), now)).toBe(false);
-    });
-});
-
-describe('nextFailureState', () => {
-    const now = new Date('2026-01-01T00:00:00Z');
-    it(`${LOCK_THRESHOLD}회째면 now+${LOCK_MINUTES}분 잠금`, () => {
-        const result = nextFailureState(LOCK_THRESHOLD - 1, now);
-        expect(result.failedAttempts).toBe(LOCK_THRESHOLD);
-        expect(result.lockedUntil).toEqual(new Date(now.getTime() + LOCK_MINUTES * 60 * 1000));
-    });
-    it('그 전에는 잠금 없이 카운트만 증가', () => {
-        expect(nextFailureState(1, now)).toEqual({ failedAttempts: 2, lockedUntil: null });
     });
 });
 
