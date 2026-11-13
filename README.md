@@ -82,7 +82,7 @@ NESS_ADMIN_PASSWORD=your_admin_password
 SMS_PROVIDER=log
 ```
 
-고용24·카카오·SENS 자격증명은 `.env.local`이 아니라 관리자 화면 `/admin/settings/api-keys` > "외부 연동"에서 입력한다(저장은 `superadmin` 역할만 가능).
+고용24·카카오·SENS 자격증명은 `.env.local`이 아니라 관리자 화면 `/admin/settings/api-keys` > "외부 연동"에서 입력한다(저장은 `superadmin` 역할만 가능). 키 발급·등록 방법은 [docs/외부연동-설정.md](docs/외부연동-설정.md) 참고.
 
 ---
 
