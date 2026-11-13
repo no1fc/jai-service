@@ -59,10 +59,13 @@ declare module 'mssql' {
 
     // SQL Types
     export const Int: any;
+    export const TinyInt: unknown;
+    export const Bit: unknown;
     export const NVarChar: (length?: number | typeof MAX) => any;
     export const VarChar: (length?: number | typeof MAX) => unknown;
     export const Float: any;
     export const DateTime: any;
+    export const DateTime2: unknown;
     export const MAX: unique symbol;
 
     // Connection function
@@ -74,10 +77,13 @@ declare module 'mssql' {
         Transaction: typeof Transaction;
         Request: typeof Request;
         Int: any;
+        TinyInt: unknown;
+        Bit: unknown;
         NVarChar: any;
         VarChar: typeof VarChar;
         Float: any;
         DateTime: any;
+        DateTime2: unknown;
         MAX: typeof MAX;
         connect: typeof connect;
     };
