@@ -11,7 +11,7 @@ interface ReportRowProps {
 }
 
 const card = 'rounded-[var(--radius-card)] border border-border bg-bg-elevated p-4';
-const rowButton = 'h-11 px-3 rounded-[var(--radius-default)] text-sm font-medium border border-border text-text-secondary hover:border-accent hover:text-accent';
+const rowButton = 'h-11 px-3 inline-flex items-center rounded-[var(--radius-default)] text-sm font-medium border border-border text-text-secondary hover:border-accent hover:text-accent';
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
