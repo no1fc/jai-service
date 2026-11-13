@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { getClientIp } from '@/lib/rate-limit';
 import { formatZodError } from '@/lib/validations';
-import { ANALYSIS_TYPES, analysisRequestSchema } from '@/lib/analysis/schema';
+import { ANALYSIS_TYPES, analysisRequestSchema, compareRequestSchema } from '@/lib/analysis/schema';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +15,12 @@ const listQuerySchema = z.object({
 });
 
 const createSchema = analysisRequestSchema.extend({ force: z.boolean().default(false) });
+const createCompareSchema = compareRequestSchema.extend({ force: z.boolean().default(false) });
+
+/** body에 keywords(배열)가 있으면 비교 요청 — 공개 라우트와 같은 규칙(설계서 5.2). */
+function isCompareBody(body: unknown): boolean {
+    return typeof body === 'object' && body !== null && Array.isArray((body as Record<string, unknown>).keywords);
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -56,12 +62,23 @@ export async function POST(request: NextRequest) {
 
         let body: unknown;
         try { body = await request.json(); } catch { return apiError('잘못된 요청입니다.', 400); }
-        const parsed = createSchema.safeParse(body);
-        if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
 
-        const { force, ...req } = parsed.data;
-        const { generateAnalysis } = await import('@/lib/analysis/generate');
-        const result = await generateAnalysis(req, { kind: 'admin', username: auth.id }, getClientIp(request), { force });
+        const actor = { kind: 'admin' as const, username: auth.id };
+        const ip = getClientIp(request);
+        const { generateAnalysis, generateComparison } = await import('@/lib/analysis/generate');
+
+        let result;
+        if (isCompareBody(body)) {
+            const parsed = createCompareSchema.safeParse(body);
+            if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
+            const { force, ...req } = parsed.data;
+            result = await generateComparison(req, actor, ip, { force });
+        } else {
+            const parsed = createSchema.safeParse(body);
+            if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
+            const { force, ...req } = parsed.data;
+            result = await generateAnalysis(req, actor, ip, { force });
+        }
         if (!result.ok) {
             const res = apiError(result.error, result.status);
             if (result.retryAfterSec !== undefined) res.headers.set('Retry-After', String(result.retryAfterSec));

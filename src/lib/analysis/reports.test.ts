@@ -3,10 +3,12 @@ import sql, { type ConnectionPool } from 'mssql';
 
 vi.mock('@/lib/db', () => ({ getPool: vi.fn() }));
 import { getPool } from '@/lib/db';
+import { normalizeKeyword } from './keywords';
 import {
     DASHBOARD_TOP_SQL, FRESH_REPORT_SQL,
     addToLibrary, countGenerationsToday, findFreshReport, getDashboard, getReportByPublicId, getReportById,
-    insertReport, listLibrary, listReports, recordRequest, removeFromLibrary,
+    insertReport, listLibrary, listReports, recordRequest, removeFromLibrary, toPublicReport,
+    type StoredReport,
 } from './reports';
 import type { ReportContent, ReportMeta } from './schema';
 
@@ -21,6 +23,9 @@ describe('FRESH_REPORT_SQL', () => {
 describe('DASHBOARD_TOP_SQL', () => {
     it('최근 30일 집계 조건을 포함한다', () => {
         expect(DASHBOARD_TOP_SQL).toContain('DATEADD(day, -30');
+    });
+    it('단일 리포트만 집계한다(비교 리포트는 키워드 조합이 제각각이라 제외)', () => {
+        expect(DASHBOARD_TOP_SQL).toContain("r.kind = 'single'");
     });
 });
 
@@ -77,15 +82,70 @@ describe('insertReport', () => {
         const row = { id: 1, public_id: 'p' };
         const { pool, log } = makeFakePool([[row]]);
         vi.mocked(getPool).mockResolvedValue(pool);
-        const req = { type: 'job' as const, keyword: 'k', scope: 'kr' as const, includeCompetitors: true, includeTrends: true };
         const result = await insertReport({
-            req, keywordNorm: 'k', cacheKey: 'c'.repeat(64),
+            type: 'job', keywords: ['k'], scope: 'kr', includeCompetitors: true, includeTrends: true, kind: 'single',
+            cacheKey: 'c'.repeat(64),
             content: { invalid: true, reason: 'x' } as unknown as ReportContent, meta: {} as unknown as ReportMeta,
             modelName: 'm', inputTokens: 1, outputTokens: 2, ttlDays: 7,
         });
         expect(result).toEqual(row);
         const cacheKeyInput = log[0].inputs.find((i) => i.name === 'cacheKey');
         expect(cacheKeyInput).toEqual({ name: 'cacheKey', type: sql.VarChar(64), value: 'c'.repeat(64) });
+    });
+    it('단일(keywords 1개)은 keyword·keyword_norm을 그 값 그대로 NVarChar(160)으로 바인딩한다', async () => {
+        const row = { id: 2, public_id: 'p2' };
+        const { pool, log } = makeFakePool([[row]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await insertReport({
+            type: 'job', keywords: ['핀테크 PM'], scope: 'kr', includeCompetitors: true, includeTrends: true, kind: 'single',
+            cacheKey: 'd'.repeat(64),
+            content: { invalid: true, reason: 'x' } as unknown as ReportContent, meta: {} as unknown as ReportMeta,
+            modelName: 'm', inputTokens: 1, outputTokens: 2, ttlDays: 7,
+        });
+        expect(log[0].inputs).toEqual(expect.arrayContaining([
+            { name: 'keyword', type: sql.NVarChar(160), value: '핀테크 PM' },
+            { name: 'keywordNorm', type: sql.NVarChar(160), value: normalizeKeyword('핀테크 PM') },
+            { name: 'kind', type: sql.VarChar(10), value: 'single' },
+        ]));
+    });
+    it('비교(keywords 2개 이상)는 keyword를 입력 순서 ", "로, keyword_norm을 정규화 후 정렬해 " | "로 결합한다', async () => {
+        const row = { id: 3, public_id: 'p3' };
+        const { pool, log } = makeFakePool([[row]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await insertReport({
+            type: 'job', keywords: ['B사', 'A사'], scope: 'kr', includeCompetitors: true, includeTrends: true, kind: 'compare',
+            cacheKey: 'e'.repeat(64),
+            content: { invalid: true, reason: 'x' } as unknown as ReportContent, meta: {} as unknown as ReportMeta,
+            modelName: 'm', inputTokens: 1, outputTokens: 2, ttlDays: 7,
+        });
+        expect(log[0].inputs).toEqual(expect.arrayContaining([
+            { name: 'keyword', type: sql.NVarChar(160), value: 'B사, A사' },
+            { name: 'keywordNorm', type: sql.NVarChar(160), value: [normalizeKeyword('B사'), normalizeKeyword('A사')].sort().join(' | ') },
+            { name: 'kind', type: sql.VarChar(10), value: 'compare' },
+        ]));
+    });
+});
+
+describe('toPublicReport', () => {
+    const base = {
+        id: 1, public_id: 'uuid', type: 'job' as const, scope: 'kr' as const,
+        include_competitors: true, include_trends: false,
+        content: '{"invalid":true,"reason":"x"}', meta: '{}',
+        model_name: 'm', input_tokens: 1, output_tokens: 2,
+        created_at: new Date('2026-11-12T00:00:00.000Z'), expires_at: new Date('2026-11-19T00:00:00.000Z'),
+    };
+    it('단일 리포트는 keywords가 [keyword] 1개다', () => {
+        const row = { ...base, keyword: '핀테크 PM', keyword_norm: 'x', kind: 'single' } as unknown as StoredReport;
+        const result = toPublicReport(row);
+        expect(result.kind).toBe('single');
+        expect(result.keywords).toEqual(['핀테크 PM']);
+        expect(result.options).toEqual({ includeCompetitors: true, includeTrends: false });
+    });
+    it('비교 리포트는 저장된 keyword("A, B")를 다시 나눠 keywords를 복원한다', () => {
+        const row = { ...base, keyword: 'A, B', keyword_norm: 'x', kind: 'compare' } as unknown as StoredReport;
+        const result = toPublicReport(row);
+        expect(result.kind).toBe('compare');
+        expect(result.keywords).toEqual(['A', 'B']);
     });
 });
 

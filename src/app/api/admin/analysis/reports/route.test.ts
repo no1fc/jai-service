@@ -8,7 +8,7 @@ vi.mock('@/lib/rate-limit', () => ({ getClientIp: vi.fn() }));
 
 import { requireRole } from '@/lib/auth';
 import { getReportByPublicId, listReports } from '@/lib/analysis/reports';
-import { generateAnalysis } from '@/lib/analysis/generate';
+import { generateAnalysis, generateComparison } from '@/lib/analysis/generate';
 import { getClientIp } from '@/lib/rate-limit';
 import { GET, POST } from './route';
 
@@ -110,5 +110,27 @@ describe('POST /api/admin/analysis/reports', () => {
         expect(res.status).toBe(201);
         const json = await res.json();
         expect(json).toEqual({ success: true, report, cached: false, id: 42 });
+    });
+
+    it('keywords(배열)가 있으면 generateComparison을 force와 함께 호출한다', async () => {
+        vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
+        vi.mocked(generateComparison).mockResolvedValue({ ok: true, report: { publicId: 'uuid' } as never, cached: false });
+        vi.mocked(getReportByPublicId).mockResolvedValue({ id: 42 } as never);
+
+        await POST(postRequest({ type: 'job', keywords: ['핀테크 PM', '데이터 분석가'], scope: 'kr', force: true }));
+        expect(generateComparison).toHaveBeenCalledWith(
+            expect.objectContaining({ keywords: ['핀테크 PM', '데이터 분석가'] }),
+            { kind: 'admin', username: 'admin1' },
+            '1.1.1.1',
+            { force: true },
+        );
+        expect(generateAnalysis).not.toHaveBeenCalled();
+    });
+
+    it('keywords가 1개면(비교 조건 미달) 400을 반환한다', async () => {
+        vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
+        const res = await POST(postRequest({ type: 'job', keywords: ['핀테크 PM'], scope: 'kr' }));
+        expect(res.status).toBe(400);
+        expect(generateComparison).not.toHaveBeenCalled();
     });
 });

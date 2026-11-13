@@ -5,7 +5,8 @@
 import sql from 'mssql';
 import { getPool } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import type { AnalysisRequest, PublicReport, ReportContent, ReportMeta } from './schema';
+import { normalizeKeyword } from './keywords';
+import type { AnalysisRequest, PublicReport, ReportContent, ReportKind, ReportMeta } from './schema';
 
 export type Actor = { kind: 'anon' } | { kind: 'user'; userId: number } | { kind: 'admin'; username: string };
 
@@ -19,6 +20,7 @@ export interface StoredReport {
     scope: AnalysisRequest['scope'];
     include_competitors: boolean;
     include_trends: boolean;
+    kind: ReportKind;
     cache_key: string;
     content: string;
     meta: string;
@@ -29,9 +31,17 @@ export interface StoredReport {
     expires_at: Date;
 }
 
+/**
+ * insertReport 입력 — 단일/비교 공통(설계서 5.4). keywords는 요청 순서 그대로("A, B"로 저장),
+ * keyword_norm은 정규화 후 정렬해 " | "로 결합한다(단일은 1개라 둘 다 같은 값이 된다).
+ */
 export interface InsertReportInput {
-    req: AnalysisRequest;
-    keywordNorm: string;
+    type: AnalysisRequest['type'];
+    keywords: string[];
+    scope: AnalysisRequest['scope'];
+    includeCompetitors: boolean;
+    includeTrends: boolean;
+    kind: ReportKind;
     cacheKey: string;
     content: ReportContent;
     meta: ReportMeta;
@@ -74,8 +84,8 @@ export interface DashboardStats {
 
 export const FRESH_REPORT_SQL = 'SELECT TOP 1 * FROM analysis_reports WHERE cache_key = @cacheKey AND expires_at > SYSUTCDATETIME() ORDER BY created_at DESC';
 
-const INSERT_REPORT_SQL = `INSERT INTO analysis_reports (type, keyword, keyword_norm, scope, include_competitors, include_trends, cache_key, content, meta, model_name, input_tokens, output_tokens, created_at, expires_at)
-    OUTPUT INSERTED.* VALUES (@type, @keyword, @keywordNorm, @scope, @comp, @trends, @cacheKey, @content, @meta, @model, @inTok, @outTok, SYSUTCDATETIME(), DATEADD(day, @ttl, SYSUTCDATETIME()))`;
+const INSERT_REPORT_SQL = `INSERT INTO analysis_reports (type, keyword, keyword_norm, scope, include_competitors, include_trends, kind, cache_key, content, meta, model_name, input_tokens, output_tokens, created_at, expires_at)
+    OUTPUT INSERTED.* VALUES (@type, @keyword, @keywordNorm, @scope, @comp, @trends, @kind, @cacheKey, @content, @meta, @model, @inTok, @outTok, SYSUTCDATETIME(), DATEADD(day, @ttl, SYSUTCDATETIME()))`;
 
 const COUNT_USER_TODAY_SQL = 'SELECT COUNT(*) AS c FROM analysis_requests WHERE user_id = @userId AND cache_hit = 0 AND created_at > DATEADD(hour, -24, SYSUTCDATETIME())';
 const COUNT_ADMIN_TODAY_SQL = 'SELECT COUNT(*) AS c FROM analysis_requests WHERE admin_username = @username AND cache_hit = 0 AND created_at > DATEADD(hour, -24, SYSUTCDATETIME())';
@@ -90,8 +100,9 @@ const LIST_LIBRARY_SQL = `SELECT r.id, r.public_id, r.type, r.keyword, r.scope, 
     (SELECT COUNT(*) FROM analysis_requests q WHERE q.report_id = r.id) AS request_count
     FROM analysis_library l JOIN analysis_reports r ON r.id = l.report_id WHERE l.user_id = @userId ORDER BY l.created_at DESC`;
 
+// 비교 리포트(kind='compare')는 키워드 조합이 제각각이라 TOP 10 집계에서 제외한다(설계서 5.4).
 export const DASHBOARD_TOP_SQL = `SELECT TOP 10 r.type, r.keyword_norm AS keyword, COUNT(*) AS cnt FROM analysis_requests q JOIN analysis_reports r ON r.id = q.report_id
-    WHERE r.type = @type AND q.created_at > DATEADD(day, -30, SYSUTCDATETIME()) GROUP BY r.type, r.keyword_norm ORDER BY cnt DESC`;
+    WHERE r.type = @type AND r.kind = 'single' AND q.created_at > DATEADD(day, -30, SYSUTCDATETIME()) GROUP BY r.type, r.keyword_norm ORDER BY cnt DESC`;
 
 const DASHBOARD_COUNT_SQL = (windowClause: string) => `SELECT COUNT(*) AS c FROM analysis_requests WHERE cache_hit = 0 AND created_at > ${windowClause}`;
 const DASHBOARD_HIT_RATE_SQL = `SELECT COUNT(*) AS total, SUM(CASE WHEN cache_hit = 1 THEN 1 ELSE 0 END) AS hits
@@ -119,13 +130,16 @@ export async function findFreshReport(cacheKey: string): Promise<StoredReport | 
 
 export async function insertReport(input: InsertReportInput): Promise<StoredReport> {
     const pool = await getPool();
+    const keyword = input.keywords.join(', ');
+    const keywordNorm = [...input.keywords].map(normalizeKeyword).sort().join(' | ');
     const r = await pool.request()
-        .input('type', sql.VarChar(10), input.req.type)
-        .input('keyword', sql.NVarChar(50), input.req.keyword)
-        .input('keywordNorm', sql.NVarChar(50), input.keywordNorm)
-        .input('scope', sql.VarChar(10), input.req.scope)
-        .input('comp', input.req.includeCompetitors)
-        .input('trends', input.req.includeTrends)
+        .input('type', sql.VarChar(10), input.type)
+        .input('keyword', sql.NVarChar(160), keyword)
+        .input('keywordNorm', sql.NVarChar(160), keywordNorm)
+        .input('scope', sql.VarChar(10), input.scope)
+        .input('comp', input.includeCompetitors)
+        .input('trends', input.includeTrends)
+        .input('kind', sql.VarChar(10), input.kind)
         .input('cacheKey', sql.VarChar(64), input.cacheKey)
         .input('content', sql.NVarChar(sql.MAX), JSON.stringify(input.content))
         .input('meta', sql.NVarChar(sql.MAX), JSON.stringify(input.meta))
@@ -259,7 +273,7 @@ export async function getDashboard(): Promise<DashboardStats> {
 
 /**
  * 저장된 행을 공개 응답(PublicReport)으로 변환한다. content/meta JSON 파싱 실패 시 throw(호출자가 500 처리).
- * kind·keywords는 비교 리포트 저장(Task 18)에서 row.kind·구분자 분리로 채운다 — 현재는 단일 리포트만 저장하므로 'single' 고정.
+ * keywords는 kind가 'compare'면 저장된 "A, B" 형태의 keyword를 다시 나눠 복원하고, 단일이면 [keyword] 그대로다.
  */
 export function toPublicReport(row: StoredReport): PublicReport {
     return {
@@ -271,8 +285,8 @@ export function toPublicReport(row: StoredReport): PublicReport {
         meta: JSON.parse(row.meta) as ReportMeta,
         createdAt: new Date(row.created_at).toISOString(),
         expiresAt: new Date(row.expires_at).toISOString(),
-        kind: 'single',
-        keywords: [row.keyword],
+        kind: row.kind,
+        keywords: row.kind === 'compare' ? row.keyword.split(', ') : [row.keyword],
         options: { includeCompetitors: row.include_competitors, includeTrends: row.include_trends },
     };
 }

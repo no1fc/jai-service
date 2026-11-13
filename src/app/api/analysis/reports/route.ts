@@ -1,12 +1,27 @@
-/** POST /api/analysis/reports - 직무/산업 분석 리포트 생성(캐시 적중 시 재사용) */
-import { type NextRequest } from 'next/server';
+/** POST /api/analysis/reports - 직무/산업 분석 리포트 생성(캐시 적중 시 재사용). keywords(배열)가 있으면 비교 리포트. */
+import { type NextRequest, NextResponse } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { formatZodError } from '@/lib/validations';
-import { analysisRequestSchema } from '@/lib/analysis/schema';
+import { analysisRequestSchema, compareRequestSchema } from '@/lib/analysis/schema';
 import { logger } from '@/lib/logger';
+import type { generateAnalysis } from '@/lib/analysis/generate';
 
 export const dynamic = 'force-dynamic';
+
+/** body에 keywords(배열)가 있으면 비교 요청 — keyword·keywords가 동시에 오면 keywords를 우선한다(설계서 5.2). */
+function isCompareBody(body: unknown): boolean {
+    return typeof body === 'object' && body !== null && Array.isArray((body as Record<string, unknown>).keywords);
+}
+
+function toResponse(result: Awaited<ReturnType<typeof generateAnalysis>>): NextResponse {
+    if (!result.ok) {
+        const res = apiError(result.error, result.status);
+        if (result.retryAfterSec !== undefined) res.headers.set('Retry-After', String(result.retryAfterSec));
+        return res;
+    }
+    return apiSuccess({ report: result.report, cached: result.cached }, undefined, result.cached ? 200 : 201);
+}
 
 export async function POST(request: NextRequest) {
     const ip = getClientIp(request);
@@ -15,19 +30,20 @@ export async function POST(request: NextRequest) {
 
     let body: unknown;
     try { body = await request.json(); } catch { return apiError('잘못된 요청입니다.', 400); }
-    const parsed = analysisRequestSchema.safeParse(body);
-    if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
 
     try {
         const { actorFromRequest } = await import('@/lib/analysis/auth/user-session');
-        const { generateAnalysis } = await import('@/lib/analysis/generate');
-        const result = await generateAnalysis(parsed.data, await actorFromRequest(), ip);
-        if (!result.ok) {
-            const res = apiError(result.error, result.status);
-            if (result.retryAfterSec !== undefined) res.headers.set('Retry-After', String(result.retryAfterSec));
-            return res;
+        const actor = await actorFromRequest();
+        if (isCompareBody(body)) {
+            const parsed = compareRequestSchema.safeParse(body);
+            if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
+            const { generateComparison } = await import('@/lib/analysis/generate');
+            return toResponse(await generateComparison(parsed.data, actor, ip));
         }
-        return apiSuccess({ report: result.report, cached: result.cached }, undefined, result.cached ? 200 : 201);
+        const parsed = analysisRequestSchema.safeParse(body);
+        if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
+        const { generateAnalysis } = await import('@/lib/analysis/generate');
+        return toResponse(await generateAnalysis(parsed.data, actor, ip));
     } catch (error) {
         logger.error('/api/analysis/reports 오류:', error);
         return apiError('리포트 생성에 실패했습니다.', 500);

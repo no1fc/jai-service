@@ -13,3 +13,8 @@ export function dataBadgeLabels(report: PublicReport): string[] {
     const labels = report.meta.dataUsed.map(d => (d === 'work24' ? '고용24 반영' : '웹 검색 반영'));
     return labels.length > 0 ? labels : ['AI 지식 기반'];
 }
+
+/** kind 배지 라벨(관리자 목록·보관함 행, 설계서 5.4) — 비교 리포트만 배지를 표시하고 단일은 null. */
+export function kindBadgeLabel(kind: PublicReport['kind']): string | null {
+    return kind === 'compare' ? '비교' : null;
+}

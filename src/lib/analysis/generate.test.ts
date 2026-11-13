@@ -8,11 +8,24 @@ import * as reports from './reports';
 import { checkDailyLimit } from './limits';
 import { fetchWork24Summary } from './work24';
 import { generateResponse, safeParseJSON } from '@/lib/gemini';
-import { generateAnalysis } from './generate';
+import { generateAnalysis, generateComparison } from './generate';
 import type { StoredReport } from './reports';
 import type { PublicReport } from './schema';
 
 const req = { type: 'job', keyword: '핀테크 PM', scope: 'kr', includeCompetitors: true, includeTrends: true } as const;
+const compareReq = { type: 'job', keywords: ['A', 'B'], scope: 'kr', includeCompetitors: true, includeTrends: true } as const;
+const validCompare = {
+    title: 't', summary: 's',
+    items: [
+        { keyword: 'A', overview: 'o', mainTasks: ['a', 'b', 'c'], keySkills: [], salary: { entry: 'e', mid: 'm' }, demandLevel: 'high', pros: [], cons: [] },
+        { keyword: 'B', overview: 'o', mainTasks: ['a', 'b', 'c'], keySkills: [], salary: { entry: 'e', mid: 'm' }, demandLevel: 'high', pros: [], cons: [] },
+    ],
+    comparison: {
+        criteria: [{ name: '연봉', values: ['1', '2'] }, { name: '수요', values: ['1', '2'] }, { name: '난이도', values: ['1', '2'] }],
+        recommendation: 'r', fitBy: [],
+    },
+    relatedJobs: [],
+};
 const anon = { kind: 'anon' } as const;
 const stored = { id: 1, public_id: 'uuid', type: 'job', keyword: '핀테크 PM', scope: 'kr', content: '{}', meta: '{}', created_at: new Date(), expires_at: new Date() } as unknown as StoredReport;
 const validJob = { title: 't', summary: 's', aliases: [], mainTasks: ['a', 'b', 'c'], skills: { hard: [], soft: [], certifications: [] }, hiring: { summary: 'h', demandLevel: 'high', postingCount: null, topRegions: [] }, salary: { entry: 'e', mid: 'm', senior: 's', basis: 'b' }, roadmap: [{ stage: '1', period: 'p', actions: ['x'] }, { stage: '2', period: 'p', actions: ['x'] }, { stage: '3', period: 'p', actions: ['x'] }], relatedJobs: [] };
@@ -143,5 +156,63 @@ describe('generateAnalysis', () => {
         expect(generateResponse).toHaveBeenCalledTimes(2); // 경쟁사 ON 기본 req → 조사 1 + 리포트 1
         await generateAnalysis(req, anon, '1.1.1.1', { force: true });
         expect(generateResponse).toHaveBeenCalledTimes(2); // anon force 무시 → 추가 호출 없음
+    });
+});
+
+describe('generateComparison', () => {
+    it('캐시 적중이면 Gemini를 호출하지 않는다', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(stored);
+        const r = await generateComparison(compareReq, anon, '1.1.1.1');
+        expect(r.ok && r.cached).toBe(true);
+        expect(generateResponse).not.toHaveBeenCalled();
+    });
+    it('트렌드 ON·국내·키워드 2개면 fetchWork24Summary를 2회 병렬 호출하고, 1개가 실패해도 work24ByKeyword에 null을 넣고 진행한다', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(fetchWork24Summary).mockImplementation(async (k: string) => {
+            if (k === 'B') throw new Error('고용24 실패');
+            return null;
+        });
+        vi.mocked(safeParseJSON).mockReturnValue(validCompare);
+        let savedMeta: unknown;
+        vi.mocked(reports.insertReport).mockImplementation(async (input) => { savedMeta = input.meta; return stored; });
+        const r = await generateComparison(compareReq, anon, '1.1.1.1');
+        expect(r.ok).toBe(true);
+        expect(fetchWork24Summary).toHaveBeenCalledTimes(2);
+        expect(fetchWork24Summary).toHaveBeenCalledWith('A');
+        expect(fetchWork24Summary).toHaveBeenCalledWith('B');
+        expect((savedMeta as { work24ByKeyword: Record<string, unknown> }).work24ByKeyword).toEqual({ A: null, B: null });
+    });
+    it('경쟁사 ON이면 조사 1회 + 리포트 1회 = 2회 호출한다', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(fetchWork24Summary).mockResolvedValue(null);
+        vi.mocked(safeParseJSON).mockReturnValue(validCompare);
+        const r = await generateComparison(compareReq, anon, '1.1.1.1');
+        expect(r.ok).toBe(true);
+        expect(generateResponse).toHaveBeenCalledTimes(2);
+    });
+    it('invalid 응답이면 400이고 저장하지 않는다', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(fetchWork24Summary).mockResolvedValue(null);
+        vi.mocked(safeParseJSON).mockReturnValue({ invalid: true, reason: '직무가 아님' });
+        const r = await generateComparison(compareReq, anon, '1.1.1.1');
+        expect(!r.ok && r.status).toBe(400);
+        expect(reports.insertReport).not.toHaveBeenCalled();
+    });
+    it('저장 호출에 kind가 compare로, keywords가 입력 순서 그대로 전달된다', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(fetchWork24Summary).mockResolvedValue(null);
+        vi.mocked(safeParseJSON).mockReturnValue(validCompare);
+        await generateComparison(compareReq, anon, '1.1.1.1');
+        const call = vi.mocked(reports.insertReport).mock.calls.at(-1)?.[0];
+        expect(call?.kind).toBe('compare');
+        expect(call?.keywords).toEqual(['A', 'B']);
+        expect(call?.keywords.join(', ')).toBe('A, B');
+    });
+    it('한도 초과면 429', async () => {
+        vi.mocked(reports.findFreshReport).mockResolvedValue(null);
+        vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: false, retryAfterSec: 60, message: 'x' });
+        const r = await generateComparison(compareReq, anon, '1.1.1.1');
+        expect(!r.ok && r.status).toBe(429);
+        expect(generateResponse).not.toHaveBeenCalled();
     });
 });
