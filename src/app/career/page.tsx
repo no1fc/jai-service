@@ -18,14 +18,17 @@ export default function CareerPage() {
     const flow = useCareerFlow();
     const [tab, setTab] = useState<Tab>('letter');
     const [copied, setCopied] = useState(false);
+    const [copyError, setCopyError] = useState('');
 
     async function copyLetter() {
         if (!flow.result) return;
         try {
             await navigator.clipboard.writeText(flow.result.coverLetter);
             setCopied(true);
+            setCopyError('');
         } catch {
             setCopied(false);
+            setCopyError('복사에 실패했습니다. 직접 선택해 복사해 주세요.');
         }
     }
 
@@ -59,6 +62,8 @@ export default function CareerPage() {
                 />
             )}
 
+            {flow.step === 'waitingJobItems' && <p className={`${box} text-center text-text-secondary`} role="status">맞춤 문항을 준비하고 있어요...</p>}
+
             {flow.step === 'loading' && <p className={`${box} text-center text-text-secondary`} role="status">AI가 자기소개서와 역량을 분석하고 있어요...</p>}
 
             {flow.step === 'result' && flow.result && (
@@ -82,6 +87,7 @@ export default function CareerPage() {
                             <button onClick={copyLetter} className="h-11 px-4 inline-flex items-center gap-2 rounded-[var(--radius-default)] border border-border text-text-secondary">
                                 <Copy size={16} aria-hidden /> {copied ? '복사됨' : '복사하기'}
                             </button>
+                            {copyError && <p role="alert" className="text-danger text-sm">{copyError}</p>}
                             <p className="text-sm text-text-secondary border-t border-border pt-3"><b className="text-text">직무 적합도</b> {flow.result.jobFit}</p>
                         </div>
                     )}
