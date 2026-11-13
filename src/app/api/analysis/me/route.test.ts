@@ -30,11 +30,22 @@ describe('GET /api/analysis/me', () => {
     });
 
     it('로그인 상태면 사용자 정보를 반환한다', async () => {
+        const createdAt = new Date('2026-01-01T00:00:00Z');
+        const lastLoginAt = new Date('2026-02-01T00:00:00Z');
         vi.mocked(getCurrentUser).mockResolvedValue({ id: 7 });
-        vi.mocked(getUserById).mockResolvedValue({ id: 7, provider: 'phone', provider_id: '01000000000', email: null } as never);
+        vi.mocked(getUserById).mockResolvedValue({
+            id: 7, provider: 'phone', provider_id: '01000000000', email: null,
+            must_change_password: true, consent_at: createdAt, created_at: createdAt, last_login_at: lastLoginAt,
+        } as never);
         const res = await GET();
         const json = await res.json();
-        expect(json).toEqual({ success: true, user: { id: 7, provider: 'phone', email: null } });
+        expect(json).toEqual({
+            success: true,
+            user: {
+                id: 7, provider: 'phone', email: null,
+                createdAt: createdAt.toISOString(), lastLoginAt: lastLoginAt.toISOString(), mustChangePassword: true,
+            },
+        });
     });
 });
 

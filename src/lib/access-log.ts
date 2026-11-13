@@ -6,7 +6,8 @@ import sql from 'mssql';
 import { getPool } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-export type AdminAccessAction = 'lead.view' | 'lead.report' | 'lead.status' | 'lead.list';
+export type AdminAccessAction = 'lead.view' | 'lead.report' | 'lead.status' | 'lead.list'
+    | 'app_user_search' | 'app_user_reset_password';
 
 interface LogAdminAccessInput {
     adminUsername: string;

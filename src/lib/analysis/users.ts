@@ -162,7 +162,10 @@ export async function recordLoginFailure(id: number): Promise<{ failedAttempts: 
         .input('lockThreshold', sql.Int, LOCK_THRESHOLD)
         .input('lockMinutes', sql.Int, LOCK_MINUTES)
         .query(RECORD_LOGIN_FAILURE_SQL);
-    const row = r.recordset[0] as { failed_attempts: number; locked_until: Date | null };
+    const row = r.recordset[0] as { failed_attempts: number; locked_until: Date | null } | undefined;
+    // id가 존재하지 않으면 UPDATE가 0행을 건드려 OUTPUT도 비어 있다 — 조용히 undefined를 반환하면 호출 측이
+    // 잠금 해제로 오인할 수 있어 명확한 에러로 알린다.
+    if (!row) throw new Error(`recordLoginFailure: 대상 사용자를 찾을 수 없습니다(id=${id})`);
     return { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until };
 }
 

@@ -17,6 +17,7 @@ export {
     signupSchema,
     loginSchema,
     changePasswordSchema,
+    maskEmail,
 } from './local-schema';
 
 const BCRYPT_COST = 10;

@@ -46,3 +46,8 @@ export const changePasswordSchema = z.object({
     message: '현재 비밀번호와 다르게 입력해 주세요.',
     path: ['newPassword'],
 });
+
+/** 관리자 화면에 노출할 이메일 마스킹(첫 글자만 보여줌). 예: 'foo@bar.com' → 'f***@bar.com'. */
+export function maskEmail(email: string): string {
+    return `${email[0]}***${email.slice(email.indexOf('@'))}`;
+}

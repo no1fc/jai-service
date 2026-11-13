@@ -249,6 +249,11 @@ describe('recordLoginFailure', () => {
         vi.mocked(getPool).mockResolvedValue(pool);
         expect(await recordLoginFailure(1)).toEqual({ failedAttempts: 2, lockedUntil: null });
     });
+    it('대상 행이 없으면(id 불일치 등) 명확한 에러를 던진다', async () => {
+        const { pool } = makeFakePool([[]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await expect(recordLoginFailure(999)).rejects.toThrow(/찾을 수 없습니다/);
+    });
 });
 
 describe('recordLoginSuccess', () => {

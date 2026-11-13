@@ -7,6 +7,7 @@ import {
     hashPassword,
     isLocked,
     loginSchema,
+    maskEmail,
     passwordSchema,
     signupSchema,
     verifyPassword,
@@ -39,7 +40,7 @@ describe('passwordSchema', () => {
         expect(passwordSchema.safeParse('abcd1234').success).toBe(true);
     });
     it('UTF-8 바이트 기준 72바이트를 넘으면 거부한다(멀티바이트 문자 포함)', () => {
-        // '가'는 UTF-8로 3바이트 → 20자(60바이트) + 영문2자+숫자2자(4바이트) = 64바이트로 PASSWORD_MAX(64자)는 통과하지만 바이트 검사로 거부돼야 함
+        // '가'는 UTF-8로 3바이트 → 입력은 28자(60+4+12=76바이트)로 PASSWORD_MAX(64자)는 통과하지만 바이트 검사(72바이트 한도)로 거부돼야 함
         const multibyte = `${'가'.repeat(20)}ab12${'가'.repeat(4)}`;
         expect(multibyte.length).toBeLessThanOrEqual(64);
         expect(new TextEncoder().encode(multibyte).length).toBeGreaterThan(72);
@@ -111,5 +112,14 @@ describe('hashPassword / verifyPassword', () => {
 describe('DUMMY_HASH', () => {
     it('모듈 로드 시 생성된 bcrypt 해시 형식 문자열이다', () => {
         expect(DUMMY_HASH).toMatch(/^\$2[aby]\$10\$/);
+    });
+});
+
+describe('maskEmail', () => {
+    it('첫 글자만 남기고 나머지 로컬 파트를 가린다', () => {
+        expect(maskEmail('foo@bar.com')).toBe('f***@bar.com');
+    });
+    it('로컬 파트가 1글자여도 동작한다', () => {
+        expect(maskEmail('a@b.com')).toBe('a***@b.com');
     });
 });
