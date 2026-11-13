@@ -64,6 +64,13 @@ describe('parsePolicy', () => {
         expect(DEFAULT_PRIVACY_POLICY).toContain('서비스 이용 기록');
         expect(DEFAULT_PRIVACY_POLICY).toContain('분석 요청 일시·키워드');
     });
+
+    it('DEFAULT_PRIVACY_POLICY는 SENS·휴대폰 인증 문구가 없고 이메일 로그인 관련 문구를 포함한다', () => {
+        expect(DEFAULT_PRIVACY_POLICY).not.toMatch(/SENS|네이버클라우드|휴대폰 인증/);
+        expect(DEFAULT_PRIVACY_POLICY).toContain('이메일 로그인 시');
+        expect(DEFAULT_PRIVACY_POLICY).toContain('로그인 실패 횟수');
+        expect(DEFAULT_PRIVACY_POLICY).toContain('마이페이지');
+    });
 });
 
 describe('hasPlaceholder', () => {
