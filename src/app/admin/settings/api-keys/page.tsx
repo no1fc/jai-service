@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { KeyRound, Loader2, Save, Trash2, Plus, Cpu, Map as MapIcon, Calculator, AlertTriangle, Plug } from 'lucide-react';
+import Link from 'next/link';
+import { KeyRound, Loader2, Save, Trash2, Plus, Cpu, Map as MapIcon, Calculator, AlertTriangle, Plug, BookOpen } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { GEMINI_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_ANALYSIS_MODEL, findGeminiModel } from '@/lib/gemini-models';
 
@@ -502,15 +503,24 @@ export default function ApiKeysSettingsPage() {
                 />
 
                 <div className="bg-[var(--color-bg-elevated)] rounded-[4px] border border-[var(--color-border)] overflow-hidden mb-8">
-                    <div className="p-6 border-b border-[var(--color-border)]">
-                        <div className="flex items-center gap-2 text-[var(--color-text)] font-bold text-lg mb-1">
-                            <Plug className="text-[var(--color-accent)]" size={22} />
-                            외부 연동
+                    <div className="p-6 border-b border-[var(--color-border)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <div className="flex items-center gap-2 text-[var(--color-text)] font-bold text-lg mb-1">
+                                <Plug className="text-[var(--color-accent)]" size={22} />
+                                외부 연동
+                            </div>
+                            <p className="text-[var(--color-text-muted)] text-sm">
+                                고용24·카카오 로그인·네이버 클라우드 SENS 연동에 쓰는 값입니다. 새 값을 입력하고 저장하면 이전 값을 덮어쓰며,
+                                비밀값은 조회 시 원문이 노출되지 않습니다.
+                            </p>
                         </div>
-                        <p className="text-[var(--color-text-muted)] text-sm">
-                            고용24·카카오 로그인·네이버 클라우드 SENS 연동에 쓰는 값입니다. 새 값을 입력하고 저장하면 이전 값을 덮어쓰며,
-                            비밀값은 조회 시 원문이 노출되지 않습니다.
-                        </p>
+                        <Link
+                            href="/admin/settings/api-keys/guide"
+                            className="h-11 px-4 inline-flex items-center gap-2 text-sm font-medium rounded-[4px] border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors whitespace-nowrap"
+                        >
+                            <BookOpen size={16} />
+                            등록 방법 보기
+                        </Link>
                     </div>
                     <div className="p-6 divide-y divide-[var(--color-border)]">
                         <SecretField label="고용24 인증키" settingKey="work24_api_key" maskedValue={work24ApiKey} onSave={handleSaveSecret} />
