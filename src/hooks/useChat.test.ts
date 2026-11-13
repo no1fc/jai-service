@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_INFO_MESSAGE, DEFAULT_INTRO_MESSAGE } from '@/lib/prompts';
 import { chatRequestSchema } from '@/lib/validations';
+import type { DiagnosisResult, Message } from './useChat';
 import { buildChatRequestBody, chatReducer, initialState, toReceivePayload, isQuestionsDone } from './useChat';
 
 vi.mock('@/lib/db', () => ({ getSetting: vi.fn() }));
@@ -146,5 +147,115 @@ describe('"국민취업제도란? → 시작하기" 흐름 (Bug A, 흐름)', () 
     });
     it('인트로 문구는 history에 남으므로 1000자 이하여야 한다', () => {
         expect(DEFAULT_INTRO_MESSAGE[0].message.length).toBeLessThanOrEqual(1000);
+    });
+});
+
+describe('chatReducer - 기타 액션 (SET_LOADING·PREPARE_SEND·ADD_USER_DATA·분석·오류·초기화)', () => {
+    const aiMsg = (content: string): Message => ({ id: 'm1', role: 'ai', content, timestamp: new Date() });
+    const userMsg = (content: string): Message => ({ id: 'm2', role: 'user', content, timestamp: new Date() });
+
+    it('SET_LOADING은 isLoading만 바꾼다', () => {
+        const next = chatReducer(initialState, { type: 'SET_LOADING', payload: true });
+        expect(next.isLoading).toBe(true);
+        expect(next.messages).toEqual(initialState.messages);
+    });
+
+    it('PREPARE_SEND는 로딩 시작·오류 초기화·사용자 메시지 추가·lastAction 저장', () => {
+        const msg = userMsg('예');
+        const next = chatReducer({ ...initialState, isError: true }, {
+            type: 'PREPARE_SEND',
+            payload: { lastAction: { type: 'choice', data: { id: 'c1', label: '예', value: 'yes' } }, userMessage: msg },
+        });
+        expect(next.isLoading).toBe(true);
+        expect(next.isError).toBe(false);
+        expect(next.messages).toEqual([msg]);
+        expect(next.lastAction).toEqual({ type: 'choice', data: { id: 'c1', label: '예', value: 'yes' } });
+    });
+
+    it('ADD_USER_DATA는 history에 항목을 추가하고 userAnswers를 교체한다', () => {
+        const next = chatReducer(initialState, {
+            type: 'ADD_USER_DATA',
+            payload: { historyEntry: { role: 'user', content: '28' }, answers: { age: '28' } },
+        });
+        expect(next.history).toEqual([{ role: 'user', content: '28' }]);
+        expect(next.userAnswers).toEqual({ age: '28' });
+    });
+
+    it('START_ANALYSIS는 analyzing 단계로 전환하고 로딩 메시지를 추가한다', () => {
+        const loadingMessage = aiMsg('🔍 AI가 요건을 검토 중입니다...');
+        const next = chatReducer(initialState, {
+            type: 'START_ANALYSIS',
+            payload: { loadingMessage, lastAction: { type: 'analysis', data: {} } },
+        });
+        expect(next.phase).toBe('analyzing');
+        expect(next.isLoading).toBe(true);
+        expect(next.messages).toEqual([loadingMessage]);
+    });
+
+    it('ANALYSIS_SUCCESS는 로딩 메시지를 결과 메시지로 교체하고 result/phase를 설정한다', () => {
+        const afterStart = chatReducer(initialState, {
+            type: 'START_ANALYSIS',
+            payload: { loadingMessage: aiMsg('검토 중...'), lastAction: null },
+        });
+        const result: DiagnosisResult = { type: '1유형_선발형', description: '설명' };
+        const resultMessage = aiMsg('결과');
+        const next = chatReducer(afterStart, { type: 'ANALYSIS_SUCCESS', payload: { resultMessage, result } });
+
+        expect(next.phase).toBe('result');
+        expect(next.result).toEqual(result);
+        expect(next.messages).toEqual([resultMessage]);
+    });
+
+    it('SET_ERROR는 "검토 중" 로딩 메시지가 있으면 교체하고, 없으면 끝에 추가한다', () => {
+        const withLoading = chatReducer(initialState, {
+            type: 'START_ANALYSIS',
+            payload: { loadingMessage: aiMsg('🔍 AI가 요건을 검토 중입니다...'), lastAction: null },
+        });
+        const errorMessage = aiMsg('오류');
+        const replaced = chatReducer(withLoading, { type: 'SET_ERROR', payload: { errorMessage } });
+        expect(replaced.messages).toEqual([errorMessage]);
+        expect(replaced.isError).toBe(true);
+
+        const otherError = aiMsg('오류2');
+        const appended = chatReducer(initialState, { type: 'SET_ERROR', payload: { errorMessage: otherError } });
+        expect(appended.messages).toEqual([otherError]);
+    });
+
+    it('REMOVE_LAST_MESSAGES는 끝에서 count개를 제거한다', () => {
+        const withThree = { ...initialState, messages: [aiMsg('a'), aiMsg('b'), aiMsg('c')] };
+        const next = chatReducer(withThree, { type: 'REMOVE_LAST_MESSAGES', payload: { count: 2 } });
+        expect(next.messages).toHaveLength(1);
+        expect(next.messages[0].content).toBe('a');
+    });
+
+    it('START_CHAT_SUCCESS는 메시지를 인트로 1개로 교체하고 phase를 intro로 둔다', () => {
+        const introMessage = aiMsg('안녕하세요');
+        const next = chatReducer({ ...initialState, isLoading: true, phase: 'result' }, {
+            type: 'START_CHAT_SUCCESS',
+            payload: { introMessage },
+        });
+        expect(next.messages).toEqual([introMessage]);
+        expect(next.phase).toBe('intro');
+        expect(next.isLoading).toBe(false);
+    });
+
+    it('START_CHAT_ERROR는 오류 메시지만 남기고 로딩을 해제한다', () => {
+        const errorMessage = aiMsg('시작 오류');
+        const next = chatReducer({ ...initialState, isLoading: true }, {
+            type: 'START_CHAT_ERROR',
+            payload: { errorMessage },
+        });
+        expect(next.messages).toEqual([errorMessage]);
+        expect(next.isLoading).toBe(false);
+    });
+
+    it('RESET은 초기 상태로 되돌린다', () => {
+        const dirty = { ...initialState, currentStep: 5, messages: [aiMsg('x')] };
+        expect(chatReducer(dirty, { type: 'RESET' })).toEqual(initialState);
+    });
+
+    it('정의되지 않은 액션은 상태를 그대로 반환한다', () => {
+        const unknownAction = { type: 'UNKNOWN' } as unknown as Parameters<typeof chatReducer>[1];
+        expect(chatReducer(initialState, unknownAction)).toBe(initialState);
     });
 });
