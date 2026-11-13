@@ -2,17 +2,16 @@
 
 /**
  * 보관함 — 로그인 시 서버 보관함(`/api/analysis/library`), 비로그인 시 이 기기의 최근 조회(`readRecent`)를 보여준다.
- * 상태·네트워크 처리는 `use-library-account.ts` 훅에 있고, 목록/액션 UI는 하위 컴포넌트(`LibraryList`·
- * `RecentList`·`AccountActions`)로 분리했다 — 이 페이지는 조립만 담당한다.
+ * 상태·네트워크 처리는 `use-library-account.ts` 훅에 있고, 목록 UI는 하위 컴포넌트(`LibraryList`·`RecentList`)로
+ * 분리했다 — 이 페이지는 조립만 담당한다. 로그아웃·탈퇴는 `/analysis/me`(계정 관리)로 옮겼다.
  */
 import Link from 'next/link';
-import AccountActions from '@/components/analysis/AccountActions';
 import LibraryList from '@/components/analysis/LibraryList';
 import RecentList from '@/components/analysis/RecentList';
 import { useLibraryAccount } from '@/components/analysis/use-library-account';
 
 export default function LibraryPage() {
-    const { me, items, recent, error, busy, removeItem, logout, withdraw } = useLibraryAccount();
+    const { me, items, recent, error, busy, removeItem } = useLibraryAccount();
 
     if (me.kind === 'loading') return null;
 
@@ -31,7 +30,11 @@ export default function LibraryPage() {
 
             {me.kind === 'guest' ? <RecentList items={recent} /> : <LibraryList items={items} busy={busy} onRemove={removeItem} />}
 
-            {me.kind === 'user' && <AccountActions busy={busy} onLogout={logout} onWithdraw={withdraw} />}
+            {me.kind === 'user' && (
+                <div className="pt-4 border-t border-border">
+                    <Link href="/analysis/me" className="text-sm font-medium text-accent underline">계정 관리</Link>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,15 +1,17 @@
 'use client';
 
 /**
- * 참여자 로그인 폼 — 카카오(선택) + 이메일(준비 중). `login/page.tsx`(서버 컴포넌트)가
+ * 참여자 로그인 폼 — 카카오(선택) + 이메일. `login/page.tsx`(서버 컴포넌트)가
  * `isKakaoConfigured()`를 직접 호출해 구한 `kakaoEnabled`와 `safeReturnTo`로 정리된 `returnTo`를 prop으로 받는다.
- * 하위 UI는 `ConsentBlock`·`KakaoButton`으로 분리했고, 판단 로직은 `login-logic.ts`의 순수 함수가 담당한다.
- * 이메일 로그인 폼은 Task 14에서 추가한다.
+ * 하위 UI는 `ConsentBlock`·`KakaoButton`·`EmailLoginForm`으로 분리했고, 판단 로직은 `login-logic.ts`의 순수 함수가 담당한다.
+ * 동의 체크는 카카오 첫 로그인·가입에만 요구하므로 `ConsentBlock`은 카카오 버튼 위에만 둔다(이메일 로그인은
+ * 이미 가입 시 동의했으므로 다시 요구하지 않는다).
  */
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ConsentBlock from './ConsentBlock';
 import KakaoButton from './KakaoButton';
+import EmailLoginForm from './EmailLoginForm';
 import { isAgreed, resolveCallbackErrorMessage } from './login-logic';
 
 interface LoginFormProps {
@@ -40,7 +42,7 @@ export default function LoginForm({ kakaoEnabled, returnTo }: LoginFormProps) {
                 <span>또는</span>
                 <span className="h-px flex-1 bg-border" />
             </div>
-            <p className="text-sm text-text-secondary">이메일 로그인은 준비 중입니다.</p>
+            <EmailLoginForm returnTo={returnTo} />
         </div>
     );
 }
