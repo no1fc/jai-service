@@ -5,8 +5,8 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { formatZodError } from '@/lib/validations';
 import { logger } from '@/lib/logger';
 import { changePasswordSchema } from '@/lib/analysis/auth/local-schema';
-import { hashPassword, verifyPassword } from '@/lib/analysis/auth/local';
-import { findLocalUserByEmail, getUserById, updatePassword } from '@/lib/analysis/users';
+import { hashPassword, isLocked, verifyPassword } from '@/lib/analysis/auth/local';
+import { findLocalUserByEmail, getUserById, recordLoginFailure, updatePassword } from '@/lib/analysis/users';
 import { getCurrentUser } from '@/lib/analysis/auth/user-session';
 
 export const dynamic = 'force-dynamic';
@@ -26,15 +26,22 @@ export async function PUT(request: NextRequest) {
 
     try {
         const user = await getUserById(current.id);
-        if (!user) return apiError('계정을 찾을 수 없습니다.', 404);
+        // 세션 토큰은 유효하지만 계정이 없는 경우(탈퇴 등)도 미로그인과 같이 401로 처리한다.
+        if (!user) return apiError('로그인이 필요합니다.', 401);
         if (user.provider !== 'local') return apiError('이메일 계정만 변경할 수 있습니다.', 400);
 
         // getUserById는 비공개 컬럼(password_hash)을 빼므로, 로컬 계정 전용 조회(email 기준)로 다시 가져온다.
         const local = await findLocalUserByEmail(user.email ?? '');
         if (!local?.password_hash) return apiError('현재 비밀번호가 올바르지 않습니다.', 400);
 
+        // 잠긴 계정은 로그인과 동일하게 다루어 비교 없이 즉시 거부한다(잠금 연장 방지 — recordLoginFailure 미호출).
+        if (isLocked(local.locked_until, new Date())) return apiError('현재 비밀번호가 올바르지 않습니다.', 400);
+
         const valid = await verifyPassword(parsed.data.currentPassword, local.password_hash);
-        if (!valid) return apiError('현재 비밀번호가 올바르지 않습니다.', 400);
+        if (!valid) {
+            await recordLoginFailure(current.id);
+            return apiError('현재 비밀번호가 올바르지 않습니다.', 400);
+        }
 
         const newHash = await hashPassword(parsed.data.newPassword);
         await updatePassword(current.id, newHash, false);

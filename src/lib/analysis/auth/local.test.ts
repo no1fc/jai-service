@@ -122,4 +122,10 @@ describe('maskEmail', () => {
     it('로컬 파트가 1글자여도 동작한다', () => {
         expect(maskEmail('a@b.com')).toBe('a***@b.com');
     });
+    it('빈 문자열이면 ***를 반환한다', () => {
+        expect(maskEmail('')).toBe('***');
+    });
+    it("'@'가 없으면 ***를 반환한다", () => {
+        expect(maskEmail('notanemail')).toBe('***');
+    });
 });

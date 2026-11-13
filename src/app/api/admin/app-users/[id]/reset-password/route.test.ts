@@ -72,5 +72,6 @@ describe('POST /api/admin/app-users/[id]/reset-password', () => {
         const json = await res.json();
         expect(json).toEqual({ success: true, tempPassword: 'Temp12345678' });
         expect(JSON.stringify(json)).not.toContain('HASH');
+        expect(res.headers.get('Cache-Control')).toBe('no-store');
     });
 });

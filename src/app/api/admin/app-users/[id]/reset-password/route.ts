@@ -30,7 +30,10 @@ export async function POST(request: NextRequest, ctx: Ctx) {
 
         void logAdminAccess({ adminUsername: auth.id, action: 'app_user_reset_password', targetType: 'app_user', targetId: id, ip: getClientIp(request) });
 
-        return apiSuccess({ tempPassword });
+        const res = apiSuccess({ tempPassword });
+        // 임시 비밀번호는 1회만 노출해야 하므로 브라우저·중간 캐시에 남지 않게 한다.
+        res.headers.set('Cache-Control', 'no-store');
+        return res;
     } catch (error) {
         logger.error('/api/admin/app-users/[id]/reset-password 오류:', error);
         return apiError('임시 비밀번호 발급에 실패했습니다.', 500);

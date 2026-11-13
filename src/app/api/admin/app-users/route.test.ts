@@ -36,6 +36,20 @@ describe('GET /api/admin/app-users', () => {
         expect(findLocalUserByEmail).not.toHaveBeenCalled();
     });
 
+    it('email 파라미터가 없으면 400을 반환한다', async () => {
+        vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
+        const res = await GET(req(''));
+        expect(res.status).toBe(400);
+        expect(findLocalUserByEmail).not.toHaveBeenCalled();
+    });
+
+    it('requireRole이 403(권한 부족)을 반환하면 그대로 전달한다', async () => {
+        vi.mocked(requireRole).mockResolvedValue(NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 }));
+        const res = await GET(req('?email=foo@bar.com'));
+        expect(res.status).toBe(403);
+        expect(findLocalUserByEmail).not.toHaveBeenCalled();
+    });
+
     it('결과가 없으면 user: null을 반환하고 접속기록을 남긴다', async () => {
         vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
         vi.mocked(findLocalUserByEmail).mockResolvedValue(null);
