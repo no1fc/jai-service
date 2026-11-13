@@ -19,24 +19,6 @@ export type CompetencyKey = typeof COMPETENCIES[number]['key'];
 const COMPETENCY_KEYS = COMPETENCIES.map(c => c.key) as [CompetencyKey, ...CompetencyKey[]];
 
 const rating = z.number().int().min(1, '역량 점수는 1~5 사이여야 합니다.').max(5, '역량 점수는 1~5 사이여야 합니다.');
-const ratingsShape = Object.fromEntries(COMPETENCIES.map(c => [c.key, rating])) as Record<CompetencyKey, typeof rating>;
-
-/** @deprecated v1 요청 스키마. route.ts/page.tsx가 Task 8·9에서 v2로 바뀔 때까지 유지한다. */
-export const legacyCareerRequestSchema = z.object({
-    desiredJob: z.string().trim().min(1, '희망 직무를 입력해주세요.').max(100),
-    experience: z.string().trim().min(10, '경험을 10자 이상 적어주세요.').max(600),
-    ratings: z.object(ratingsShape),
-});
-export type LegacyCareerRequest = z.infer<typeof legacyCareerRequestSchema>;
-
-/** @deprecated v1 결과 스키마. route.ts/page.tsx가 Task 8·9에서 v2로 바뀔 때까지 유지한다. */
-export const legacyCareerResultSchema = z.object({
-    coverLetter: z.string().min(1),
-    strengths: z.array(z.string()).max(5),
-    gaps: z.array(z.string()).max(5),
-    recommendedPrograms: z.array(z.string()).max(5),
-});
-export type LegacyCareerResult = z.infer<typeof legacyCareerResultSchema>;
 
 /** STAR 경험 1건. 각 항목 20~200자. */
 export const starSchema = z.object({
@@ -89,7 +71,13 @@ export const careerResultSchema = z.object({
     strengths: z.array(z.string()).max(5),
     gaps: z.array(z.string()).max(5),
     recommendedPrograms: z.array(z.string()).max(5),
-    competencyDetails: z.array(competencyDetailSchema).length(8),
+    competencyDetails: z.array(competencyDetailSchema).length(8).refine(
+        details => {
+            const keys = details.map(d => d.key);
+            return new Set(keys).size === 8 && COMPETENCY_KEYS.every(key => keys.includes(key));
+        },
+        '8개 역량이 중복 없이 모두 포함되어야 합니다.',
+    ),
     jobFit: z.string().min(1).max(400),
 });
 export type CareerResult = z.infer<typeof careerResultSchema>;
