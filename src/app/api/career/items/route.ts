@@ -27,11 +27,15 @@ export async function POST(request: NextRequest) {
     const parsed = itemsRequestSchema.safeParse(body);
     if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
 
+    // 정규화 결과가 빈 문자열이면(허용되지 않는 문자만 입력) 서로 다른 입력이 같은 '' PK 행을 공유하게 되므로 캐시를 건너뛴다.
     const jobNorm = normalizeKeyword(parsed.data.desiredJob);
+    const useCache = jobNorm !== '';
 
     try {
-        const cached = await getCachedJobItems(jobNorm);
-        if (cached) return apiSuccess({ items: cached });
+        if (useCache) {
+            const cached = await getCachedJobItems(jobNorm);
+            if (cached) return apiSuccess({ items: cached });
+        }
 
         const { generateResponse, safeParseJSON } = await import('@/lib/gemini');
         const { logApiUsage } = await import('@/lib/db');
@@ -43,7 +47,14 @@ export async function POST(request: NextRequest) {
         const result = jobItemsResponseSchema.safeParse(safeParseJSON(ai.text));
         if (!result.success) return apiSuccess({ items: [] });
 
-        await putCachedJobItems(jobNorm, result.data.items);
+        if (useCache) {
+            // 캐시 저장 실패는 이미 검증된 문항을 버릴 이유가 아니므로, 쓰기만 따로 감싸 로그만 남기고 응답은 그대로 돌려준다.
+            try {
+                await putCachedJobItems(jobNorm, result.data.items);
+            } catch (cacheError) {
+                logger.error('/api/career/items 캐시 저장 실패:', cacheError);
+            }
+        }
         return apiSuccess({ items: result.data.items });
     } catch (error) {
         // AI 실패·검증 실패는 재시도하지 않는다 — 클라이언트는 공통 문항만으로 계속 진행한다.

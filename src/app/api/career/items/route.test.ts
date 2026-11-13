@@ -96,4 +96,26 @@ describe('POST /api/career/items', () => {
         const json = await res.json();
         expect(json).toEqual({ success: true, items: [] });
     });
+
+    it('캐시 저장이 실패해도 이미 검증된 문항을 200으로 반환한다', async () => {
+        vi.mocked(getCachedJobItems).mockResolvedValue(null);
+        vi.mocked(generateResponse).mockResolvedValue(fakeAiResponse('ai raw text'));
+        vi.mocked(safeParseJSON).mockReturnValue({ items: validItems });
+        vi.mocked(putCachedJobItems).mockRejectedValue(new Error('DB 쓰기 실패'));
+        const res = await POST(postRequest({ desiredJob: '웹 개발' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json).toEqual({ success: true, items: validItems });
+    });
+
+    it('정규화 결과가 빈 문자열이면 캐시 조회·저장을 건너뛰고 생성은 그대로 진행한다', async () => {
+        vi.mocked(generateResponse).mockResolvedValue(fakeAiResponse('ai raw text'));
+        vi.mocked(safeParseJSON).mockReturnValue({ items: validItems });
+        const res = await POST(postRequest({ desiredJob: '???' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json).toEqual({ success: true, items: validItems });
+        expect(getCachedJobItems).not.toHaveBeenCalled();
+        expect(putCachedJobItems).not.toHaveBeenCalled();
+    });
 });
