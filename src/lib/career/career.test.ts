@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { careerRequestSchema, careerResultSchema, competencyDetailSchema } from './schema';
+import { careerRequestSchema, careerResultSchema, competencyDetailSchema, jobItemsResponseSchema } from './schema';
 import { COMMON_ITEMS } from './items';
 
 const star = {
@@ -77,5 +77,22 @@ describe('careerResultSchema v2', () => {
     it('competencyDetailSchema는 역량·수준·점수·근거·프로그램을 검증한다', () => {
         expect(competencyDetailSchema.safeParse(competencyDetail).success).toBe(true);
         expect(competencyDetailSchema.safeParse({ ...competencyDetail, level: '최상' }).success).toBe(false);
+    });
+});
+
+describe('jobItemsResponseSchema', () => {
+    const items = [
+        { id: 'job_1', competency: 'communication', text: '맞춤 문항 텍스트를 20자 이상으로 길게 채운다' },
+        { id: 'job_2', competency: 'problemSolving', text: '맞춤 문항 텍스트를 20자 이상으로 길게 채운다' },
+        { id: 'job_3', competency: 'teamwork', text: '맞춤 문항 텍스트를 20자 이상으로 길게 채운다' },
+        { id: 'job_4', competency: 'jobKnowledge', text: '맞춤 문항 텍스트를 20자 이상으로 길게 채운다' },
+    ];
+
+    it('문항 4개가 모두 올바르면 통과한다', () => {
+        expect(jobItemsResponseSchema.safeParse({ items }).success).toBe(true);
+    });
+
+    it('문항이 3개면 거부한다', () => {
+        expect(jobItemsResponseSchema.safeParse({ items: items.slice(0, 3) }).success).toBe(false);
     });
 });
