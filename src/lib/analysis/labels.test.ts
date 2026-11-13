@@ -8,6 +8,7 @@ function makeReport(dataUsed: PublicReport['meta']['dataUsed']): PublicReport {
         content: { invalid: true, reason: 'x' } as unknown as PublicReport['content'],
         meta: { dataUsed, work24: null, sources: [], searchEntryPoint: null, modelName: 'gemini-test' },
         createdAt: '2026-11-12T00:00:00.000Z', expiresAt: '2026-11-19T00:00:00.000Z',
+        kind: 'single', keywords: ['핀테크 PM'], options: { includeCompetitors: true, includeTrends: true },
     };
 }
 

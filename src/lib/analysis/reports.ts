@@ -257,7 +257,10 @@ export async function getDashboard(): Promise<DashboardStats> {
     };
 }
 
-/** 저장된 행을 공개 응답(PublicReport)으로 변환한다. content/meta JSON 파싱 실패 시 throw(호출자가 500 처리). */
+/**
+ * 저장된 행을 공개 응답(PublicReport)으로 변환한다. content/meta JSON 파싱 실패 시 throw(호출자가 500 처리).
+ * kind·keywords는 비교 리포트 저장(Task 18)에서 row.kind·구분자 분리로 채운다 — 현재는 단일 리포트만 저장하므로 'single' 고정.
+ */
 export function toPublicReport(row: StoredReport): PublicReport {
     return {
         publicId: row.public_id,
@@ -268,5 +271,8 @@ export function toPublicReport(row: StoredReport): PublicReport {
         meta: JSON.parse(row.meta) as ReportMeta,
         createdAt: new Date(row.created_at).toISOString(),
         expiresAt: new Date(row.expires_at).toISOString(),
+        kind: 'single',
+        keywords: [row.keyword],
+        options: { includeCompetitors: row.include_competitors, includeTrends: row.include_trends },
     };
 }

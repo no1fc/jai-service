@@ -2,6 +2,7 @@
  * 직무/산업 분석 요청·리포트 스키마 (클라이언트/서버 공용, 런타임 의존성 zod만)
  */
 import { z } from 'zod';
+import { KEYWORDS_MAX } from './keywords';
 
 export const ANALYSIS_TYPES = ['job', 'industry'] as const;
 export const ANALYSIS_SCOPES = ['kr', 'global'] as const;
@@ -12,16 +13,23 @@ export const KEYWORD_MAX = 50;
 export const DAILY_LIMITS = { anon: 3, user: 10, admin: 30, global: 200 } as const;
 
 const KEYWORD_RE = /^[\p{Script=Hangul}\p{Script=Latin}0-9 /+#.&()-]+$/u;
+const keywordField = z.string().trim().min(KEYWORD_MIN, '키워드는 2자 이상 입력해 주세요.').max(KEYWORD_MAX, '키워드는 50자 이내로 입력해 주세요.')
+    .regex(KEYWORD_RE, '한글·영문·숫자와 일부 기호만 입력할 수 있습니다.');
 
 export const analysisRequestSchema = z.object({
     type: z.enum(ANALYSIS_TYPES),
-    keyword: z.string().trim().min(KEYWORD_MIN, '키워드는 2자 이상 입력해 주세요.').max(KEYWORD_MAX, '키워드는 50자 이내로 입력해 주세요.')
-        .regex(KEYWORD_RE, '한글·영문·숫자와 일부 기호만 입력할 수 있습니다.'),
+    keyword: keywordField,
     scope: z.enum(ANALYSIS_SCOPES).default('kr'),
     includeCompetitors: z.boolean().default(true),
     includeTrends: z.boolean().default(true),
 });
 export type AnalysisRequest = z.infer<typeof analysisRequestSchema>;
+
+/** 비교 리포트 요청(설계서 5.2) — keyword 1개 대신 keywords 2~3개. */
+export const compareRequestSchema = analysisRequestSchema.omit({ keyword: true }).extend({
+    keywords: z.array(keywordField).min(2, '비교할 키워드를 2개 이상 입력해 주세요.').max(KEYWORDS_MAX, `키워드는 최대 ${KEYWORDS_MAX}개까지 비교할 수 있습니다.`),
+});
+export type CompareRequest = z.infer<typeof compareRequestSchema>;
 
 const short = z.string().trim().min(1).max(200);
 const para = z.string().trim().min(1).max(800);
@@ -56,13 +64,41 @@ export const industryReportSchema = z.object({
 export type IndustryReport = z.infer<typeof industryReportSchema>;
 
 export const invalidKeywordSchema = z.object({ invalid: z.literal(true), reason: short });
-export const reportContentSchema = z.union([invalidKeywordSchema, jobReportSchema, industryReportSchema]);
+
+/** 비교 리포트 본문(설계서 5.3). items/criteria.values 개수는 비교 대상 키워드 수와 같아야 한다. */
+const compareItemSchema = z.object({
+    keyword: short, overview: para,
+    mainTasks: list(5, 3), keySkills: list(5),
+    salary: z.object({ entry: short, mid: short }),
+    demandLevel, pros: list(3), cons: list(3),
+});
+const criterionSchema = z.object({ name: short, values: z.array(short).min(1) });
+export const compareReportSchema = z.object({
+    title: short, summary: para,
+    items: z.array(compareItemSchema).min(2).max(KEYWORDS_MAX),
+    comparison: z.object({
+        criteria: z.array(criterionSchema).min(3).max(6),
+        recommendation: para,
+        fitBy: z.array(z.object({ profile: short, keyword: short, reason: para })).max(3),
+    }),
+    relatedJobs: list(5),
+}).superRefine((data, ctx) => {
+    data.comparison.criteria.forEach((c, i) => {
+        if (c.values.length !== data.items.length) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'comparison.criteria.values 개수는 items 개수와 같아야 합니다.', path: ['comparison', 'criteria', i, 'values'] });
+        }
+    });
+});
+export type CompareReport = z.infer<typeof compareReportSchema>;
+
+export const reportContentSchema = z.union([invalidKeywordSchema, jobReportSchema, industryReportSchema, compareReportSchema]);
 /** 저장·표시되는 리포트 본문. invalid 응답은 generate에서 400으로 걸러져 저장되지 않으므로 포함하지 않는다. */
-export type ReportContent = JobReport | IndustryReport;
+export type ReportContent = JobReport | IndustryReport | CompareReport;
+export type ReportKind = 'single' | 'compare';
 
 export interface Work24Summary { /* 설계서 3.1 */ total: number; sampled: number; topRegions: Array<{ region: string; count: number }>; salaryBands: Array<{ band: string; count: number }>; employmentTypes: Array<{ type: string; count: number }>; samples: Array<{ title: string; company: string; region: string; sal: string; closeDt: string; url: string }>; fetchedAt: string }
 export type DataSource = 'work24' | 'search';
-export interface ReportMeta { dataUsed: DataSource[]; work24: Work24Summary | null; sources: Array<{ title: string; uri: string }>; searchEntryPoint: string | null; modelName: string }
-export interface PublicReport { publicId: string; type: AnalysisRequest['type']; keyword: string; scope: AnalysisRequest['scope']; content: ReportContent; meta: ReportMeta; createdAt: string; expiresAt: string }
+export interface ReportMeta { dataUsed: DataSource[]; work24: Work24Summary | null; work24ByKeyword?: Record<string, Work24Summary | null>; sources: Array<{ title: string; uri: string }>; searchEntryPoint: string | null; modelName: string }
+export interface PublicReport { publicId: string; type: AnalysisRequest['type']; keyword: string; scope: AnalysisRequest['scope']; content: ReportContent; meta: ReportMeta; createdAt: string; expiresAt: string; kind: ReportKind; keywords: string[]; options: { includeCompetitors: boolean; includeTrends: boolean } }
 export const ANALYSIS_TYPE_LABEL = { job: '직무 분석', industry: '산업 분석' } as const;
 export const ANALYSIS_SCOPE_LABEL = { kr: '국내(대한민국)', global: '해외 포함' } as const;

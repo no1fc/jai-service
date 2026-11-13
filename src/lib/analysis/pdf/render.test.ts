@@ -53,6 +53,9 @@ function makeReport(content: JobReport | IndustryReport, overrides: Partial<Publ
         },
         createdAt: '2026-11-12T00:00:00.000Z',
         expiresAt: '2026-11-19T00:00:00.000Z',
+        kind: 'single',
+        keywords: [content.title],
+        options: { includeCompetitors: true, includeTrends: true },
         ...overrides,
     };
 }
