@@ -85,6 +85,34 @@ describe('chatReducer - SAVE_SNAPSHOT / GO_BACK', () => {
     });
 });
 
+describe('GO_BACK_TO', () => {
+    const q = (id: string, step: number) => toReceivePayload({ message: id, phase: 'questioning', currentStep: step, totalSteps: 12, questionId: id, type: 'choice' });
+    function answered() {
+        let s = chatReducer(initialState, { type: 'RECEIVE_RESPONSE', payload: q('age', 1) });
+        s = chatReducer(s, { type: 'SAVE_SNAPSHOT' });                                  // age 화면 스냅샷
+        s = chatReducer(s, { type: 'ADD_USER_DATA', payload: { historyEntry: { role: 'user', content: '17' }, answers: { age: '17' } } });
+        s = chatReducer(s, { type: 'RECEIVE_RESPONSE', payload: q('militaryMonths', 2) });
+        s = chatReducer(s, { type: 'SAVE_SNAPSHOT' });                                  // militaryMonths 화면 스냅샷
+        s = chatReducer(s, { type: 'ADD_USER_DATA', payload: { historyEntry: { role: 'user', content: '1년 이하' }, answers: { age: '17', militaryMonths: '12' } } });
+        return chatReducer(s, { type: 'RECEIVE_RESPONSE', payload: q('status', 3) });
+    }
+    it('지정한 질문 화면까지 되돌리고 그 이후 답변을 지운다', () => {
+        const s = chatReducer(answered(), { type: 'GO_BACK_TO', payload: { questionId: 'age' } });
+        expect(s.questionId).toBe('age');
+        expect(s.userAnswers).toEqual({});
+        expect(s.stateHistory).toHaveLength(0);
+    });
+    it('마지막 질문만 되돌릴 수도 있다', () => {
+        const s = chatReducer(answered(), { type: 'GO_BACK_TO', payload: { questionId: 'militaryMonths' } });
+        expect(s.questionId).toBe('militaryMonths');
+        expect(s.userAnswers).toEqual({ age: '17' });
+    });
+    it('스냅샷에 없는 질문이면 상태 불변', () => {
+        const before = answered();
+        expect(chatReducer(before, { type: 'GO_BACK_TO', payload: { questionId: 'region' } })).toBe(before);
+    });
+});
+
 describe('history 생성 — 안내(info) 메시지 제외 (Bug A, 순수 함수)', () => {
     it('info 응답은 historyEntry가 null이고 questioning 응답은 null이 아니다', () => {
         expect(toReceivePayload({ ...DEFAULT_INFO_MESSAGE[0], phase: 'info' }).historyEntry).toBeNull();

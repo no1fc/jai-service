@@ -71,6 +71,7 @@ export interface UseChatReturn {
     sendChoice: (choice: Choice) => Promise<void>;
     sendText: (text: string) => Promise<void>;
     goBack: () => void;
+    goBackTo: (questionId: string) => void;
     retry: () => Promise<void>;
     startChat: () => Promise<void>;
     resetChat: () => void;

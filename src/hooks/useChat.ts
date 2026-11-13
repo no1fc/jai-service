@@ -137,6 +137,7 @@ type ChatAction =
     | { type: 'START_CHAT_SUCCESS'; payload: { introMessage: Message } }
     | { type: 'START_CHAT_ERROR'; payload: { errorMessage: Message } }
     | { type: 'GO_BACK' }
+    | { type: 'GO_BACK_TO'; payload: { questionId: string } }
     | { type: 'RESET' };
 
 // ====================================
@@ -158,6 +159,29 @@ export const initialState: ChatState = {
     lastAction: null,
     stateHistory: [],
 };
+
+/**
+ * stateHistory[index] 스냅샷으로 되돌린다 (GO_BACK, GO_BACK_TO 공용).
+ * 그 이후에 쌓인 스냅샷은 버린다(slice(0, index)).
+ */
+function restoreSnapshot(state: ChatState, index: number): ChatState {
+    const snapshot = state.stateHistory[index];
+    return {
+        ...state,
+        messages: snapshot.messages,
+        currentStep: snapshot.currentStep,
+        phase: snapshot.phase,
+        userAnswers: snapshot.userAnswers,
+        history: snapshot.history,
+        result: snapshot.result,
+        questionId: snapshot.questionId,
+        questionType: snapshot.questionType,
+        totalSteps: snapshot.totalSteps,
+        stateHistory: state.stateHistory.slice(0, index),
+        isError: false,
+        lastAction: null,
+    };
+}
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     switch (action.type) {
@@ -272,22 +296,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
         case 'GO_BACK': {
             if (state.isLoading || state.stateHistory.length === 0) return state;
-            const prev = state.stateHistory[state.stateHistory.length - 1];
-            return {
-                ...state,
-                messages: prev.messages,
-                currentStep: prev.currentStep,
-                phase: prev.phase,
-                userAnswers: prev.userAnswers,
-                history: prev.history,
-                result: prev.result,
-                questionId: prev.questionId,
-                questionType: prev.questionType,
-                totalSteps: prev.totalSteps,
-                stateHistory: state.stateHistory.slice(0, -1),
-                isError: false,
-                lastAction: null,
-            };
+            return restoreSnapshot(state, state.stateHistory.length - 1);
+        }
+
+        case 'GO_BACK_TO': {
+            const idx = state.stateHistory.findLastIndex(s => s.questionId === action.payload.questionId);
+            if (state.isLoading || idx < 0) return state;
+            return restoreSnapshot(state, idx);
         }
 
         case 'RESET':
@@ -503,6 +518,13 @@ export function useChat(): UseChatReturn {
     }, []);
 
     /**
+     * 지정한 질문 화면으로 되돌아가는 함수 (모순 배너의 "수정" 버튼용)
+     */
+    const goBackTo = useCallback((questionId: string) => {
+        dispatch({ type: 'GO_BACK_TO', payload: { questionId } });
+    }, []);
+
+    /**
      * 챗봇 시작 함수
      */
     const startChat = useCallback(async () => {
@@ -545,6 +567,7 @@ export function useChat(): UseChatReturn {
         sendChoice,
         sendText,
         goBack,
+        goBackTo,
         retry,
         startChat,
         resetChat,

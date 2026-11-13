@@ -8,6 +8,18 @@ import type { DiagnosisAnswers, EligibilityCriteria } from './types';
 export type ConflictLevel = 'error' | 'warn';
 export interface Conflict { id: string; level: ConflictLevel; questions: [keyof DiagnosisAnswers, keyof DiagnosisAnswers]; message: string }
 
+/** 모순 배너 "수정" 버튼에 쓰는 질문 고정 라벨 (DIAGNOSIS_QUESTIONS 메시지 대신 사람이 읽기 쉬운 짧은 이름) */
+export const QUESTION_LABEL: Record<string, string> = {
+    age: '나이',
+    militaryMonths: '병역',
+    status: '현재 상황',
+    excluded: '참여 제한 사유',
+    familySize: '가구원 수',
+    monthlyIncome: '가구 소득',
+    workDays: '최근 2년 취업 기간',
+    hasPreschoolChild: '미취학 자녀',
+};
+
 const WORKING = new Set(['employed30', 'employedPart']);
 const num = (v: string | undefined) => (v === undefined ? NaN : Number(v));
 
