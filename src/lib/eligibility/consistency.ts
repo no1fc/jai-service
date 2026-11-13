@@ -3,10 +3,10 @@
  */
 import { CRITERIA_2026 } from './criteria-2026';
 import { DIAGNOSIS_QUESTIONS } from './answers';
-import type { EligibilityCriteria } from './types';
+import type { DiagnosisAnswers, EligibilityCriteria } from './types';
 
 export type ConflictLevel = 'error' | 'warn';
-export interface Conflict { id: string; level: ConflictLevel; questions: [string, string]; message: string }
+export interface Conflict { id: string; level: ConflictLevel; questions: [keyof DiagnosisAnswers, keyof DiagnosisAnswers]; message: string }
 
 const WORKING = new Set(['employed30', 'employedPart']);
 const num = (v: string | undefined) => (v === undefined ? NaN : Number(v));
