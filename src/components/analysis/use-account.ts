@@ -3,9 +3,10 @@
 /**
  * 참여자 로그인 상태(/api/analysis/me) + 로그아웃/탈퇴 — `AnalysisNav`·`library`·`me` 페이지가 공용으로 쓴다.
  * `use-library-account.ts`는 이 훅으로 로그인 상태를 받고 보관함 목록 관리만 추가로 담당한다.
+ * 로그아웃·탈퇴 성공 후에는 `router.push`가 아니라 전체 새로고침(`window.location.href`)으로 이동한다 —
+ * `AnalysisNav`를 포함해 세션에 의존하는 모든 컴포넌트 상태를 한 번에 초기화하기 위해서다.
  */
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 export interface AccountUser {
     id: number;
@@ -30,7 +31,6 @@ async function fetchMe(): Promise<MeState> {
 }
 
 export function useAccount() {
-    const router = useRouter();
     const [me, setMe] = useState<MeState>({ kind: 'loading' });
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -48,13 +48,19 @@ export function useAccount() {
 
     async function logout() {
         setBusy(true);
+        setError('');
         try {
-            await fetch('/api/analysis/logout', { method: 'POST' });
+            const res = await fetch('/api/analysis/logout', { method: 'POST' });
+            if (!res.ok) {
+                setError('로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+                return;
+            }
+            // 전체 새로고침으로 이동해 AnalysisNav 등 세션 의존 상태를 모두 초기화한다(router.push는 유지됨).
+            window.location.href = '/analysis';
+        } catch {
+            setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {
             setBusy(false);
-            setMe({ kind: 'guest' });
-            router.push('/analysis');
-            router.refresh();
         }
     }
 
@@ -69,8 +75,7 @@ export function useAccount() {
                 setError(typeof data?.error === 'string' ? data.error : '탈퇴 처리에 실패했습니다.');
                 return;
             }
-            router.push('/analysis');
-            router.refresh();
+            window.location.href = '/analysis';
         } catch {
             setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {

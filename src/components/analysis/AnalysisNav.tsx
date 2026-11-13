@@ -15,7 +15,7 @@ const MENU = [
 
 export default function AnalysisNav() {
     const pathname = usePathname();
-    const { me, logout } = useAccount();
+    const { me, busy, logout } = useAccount();
 
     const itemClass = (active: boolean) =>
         `min-h-11 flex items-center px-3 rounded-[var(--radius-default)] text-sm font-medium whitespace-nowrap ${
@@ -32,7 +32,7 @@ export default function AnalysisNav() {
                 {me.kind === 'user' ? (
                     <>
                         <Link href="/analysis/me" aria-current={pathname === '/analysis/me' ? 'page' : undefined} className={itemClass(pathname === '/analysis/me')}>마이페이지</Link>
-                        <button type="button" onClick={logout} className={`${itemClass(false)} w-full md:w-auto`}>로그아웃</button>
+                        <button type="button" disabled={busy} onClick={logout} className={`${itemClass(false)} w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed`}>로그아웃</button>
                     </>
                 ) : (
                     <Link href="/analysis/login" className={itemClass(false)}>로그인</Link>

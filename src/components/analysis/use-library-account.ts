@@ -10,7 +10,7 @@ import type { ReportRowItem } from './ReportRow';
 import { useAccount } from './use-account';
 
 export function useLibraryAccount() {
-    const { me, error: accountError, busy: accountBusy, logout, withdraw } = useAccount();
+    const { me, error: accountError, busy: accountBusy } = useAccount();
     const [items, setItems] = useState<ReportRowItem[]>([]);
     const [recent, setRecent] = useState<RecentItem[]>([]);
     const [error, setError] = useState('');
@@ -56,7 +56,5 @@ export function useLibraryAccount() {
         error: error || accountError,
         busy: busy || accountBusy,
         removeItem,
-        logout,
-        withdraw,
     };
 }

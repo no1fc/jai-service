@@ -2,7 +2,13 @@
  * LoginForm·SignupForm·PasswordChangeForm의 판단 로직(순수 함수) — DOM·네트워크 의존 없이 vitest로 검증한다.
  * 이메일·비밀번호 형식 검증은 서버와 동일한 {@link ../../lib/analysis/auth/local-schema}를 재사용한다.
  */
-import { emailSchema, passwordSchema, PASSWORD_MIN } from '@/lib/analysis/auth/local-schema';
+import {
+    emailSchema,
+    passwordSchema,
+    PASSWORD_DIGIT_REGEX,
+    PASSWORD_LETTER_REGEX,
+    PASSWORD_MIN,
+} from '@/lib/analysis/auth/local-schema';
 
 /** 두 필수 동의(개인정보 수집, 연령 확인)가 모두 체크됐을 때만 true. */
 export function isAgreed(consentCollect: boolean, consentAge: boolean): boolean {
@@ -27,9 +33,16 @@ export function canSubmitSignup(agreed: boolean, email: string, password: string
 export function passwordHint(password: string): string {
     const missing: string[] = [];
     if (password.length < PASSWORD_MIN) missing.push(`${PASSWORD_MIN}자 이상`);
-    if (!/[a-z]/i.test(password)) missing.push('영문');
-    if (!/\d/.test(password)) missing.push('숫자');
+    if (!PASSWORD_LETTER_REGEX.test(password)) missing.push('영문');
+    if (!PASSWORD_DIGIT_REGEX.test(password)) missing.push('숫자');
     return missing.length === 0 ? '' : `${missing.join('·')} 포함 필요`;
+}
+
+/** 비밀번호 변경 버튼 활성화 여부 — 현재 비밀번호 입력·새 비밀번호 형식·확인 일치·현재와 다름을 모두 만족해야 한다. */
+export function canSubmitPasswordChange(current: string, next: string, confirm: string, loading: boolean): boolean {
+    if (loading || current.length === 0) return false;
+    if (!passwordSchema.safeParse(next).success) return false;
+    return next === confirm && next !== current;
 }
 
 const CALLBACK_ERROR_MESSAGES: Record<string, string> = {

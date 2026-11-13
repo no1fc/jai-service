@@ -2,7 +2,7 @@
  * login-logic.ts 테스트 — 동의 게이팅, 콜백 에러 메시지 매핑.
  */
 import { describe, expect, test } from 'vitest';
-import { canSubmitLogin, canSubmitSignup, isAgreed, passwordHint, resolveCallbackErrorMessage } from './login-logic';
+import { canSubmitLogin, canSubmitPasswordChange, canSubmitSignup, isAgreed, passwordHint, resolveCallbackErrorMessage } from './login-logic';
 
 describe('isAgreed', () => {
     test('두 체크가 모두 true일 때만 true를 반환한다', () => {
@@ -102,5 +102,16 @@ describe('passwordHint', () => {
         expect(hint).toMatch(/자 이상/);
         expect(hint).toMatch(/영문/);
         expect(hint).toMatch(/숫자/);
+    });
+});
+
+describe('canSubmitPasswordChange', () => {
+    test('현재 비밀번호 입력·새 비밀번호 형식·확인 일치·현재와 다름을 모두 만족하면 true, 하나라도 어긋나면 false', () => {
+        expect(canSubmitPasswordChange('oldpass1', 'newpass2', 'newpass2', false)).toBe(true);
+        expect(canSubmitPasswordChange('', 'newpass2', 'newpass2', false)).toBe(false); // 현재 비밀번호 미입력
+        expect(canSubmitPasswordChange('oldpass1', 'onlyletters', 'onlyletters', false)).toBe(false); // 새 비밀번호 형식(숫자 없음)
+        expect(canSubmitPasswordChange('oldpass1', 'newpass2', 'different3', false)).toBe(false); // 확인 불일치
+        expect(canSubmitPasswordChange('oldpass1', 'oldpass1', 'oldpass1', false)).toBe(false); // 현재와 동일
+        expect(canSubmitPasswordChange('oldpass1', 'newpass2', 'newpass2', true)).toBe(false); // 로딩 중
     });
 });

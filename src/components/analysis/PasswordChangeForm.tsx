@@ -2,8 +2,7 @@
 
 /** 로그인한 참여자(이메일 계정)의 비밀번호 변경 폼 — me/page.tsx 하위. 성공 시 onChanged로 상위에 알린다. */
 import { useState, type FormEvent } from 'react';
-import { passwordSchema } from '@/lib/analysis/auth/local-schema';
-import { passwordHint } from './login-logic';
+import { canSubmitPasswordChange, passwordHint } from './login-logic';
 
 interface PasswordChangeFormProps {
     onChanged?: () => void;
@@ -21,7 +20,7 @@ export default function PasswordChangeForm({ onChanged }: PasswordChangeFormProp
     const [loading, setLoading] = useState(false);
 
     const hint = passwordHint(next);
-    const canSubmit = !loading && current.length > 0 && passwordSchema.safeParse(next).success && next === confirm && next !== current;
+    const canSubmit = canSubmitPasswordChange(current, next, confirm, loading);
 
     async function onSubmit(e: FormEvent) {
         e.preventDefault();

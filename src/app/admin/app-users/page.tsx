@@ -16,6 +16,10 @@ interface AppUserResult {
     isLocked: boolean;
 }
 
+function unlock(user: AppUserResult): AppUserResult {
+    return { ...user, isLocked: false };
+}
+
 const inputClass = 'h-11 flex-1 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 text-[var(--color-text)]';
 const btn = 'h-11 px-4 rounded-[4px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -30,13 +34,13 @@ export default function AdminAppUsersPage() {
 
     async function onSearch(e: FormEvent) {
         e.preventDefault();
+        setResult(null);
+        setTempPassword(null);
+        setCopied(false);
         const parsed = emailSchema.safeParse(email);
         if (!parsed.success) { setError('이메일 형식이 올바르지 않습니다.'); return; }
         setLoading(true);
         setError('');
-        setResult(null);
-        setTempPassword(null);
-        setCopied(false);
         try {
             const res = await fetch(`/api/admin/app-users?email=${encodeURIComponent(parsed.data)}`);
             const data = await res.json().catch(() => null);
@@ -58,6 +62,8 @@ export default function AdminAppUsersPage() {
             const data = await res.json().catch(() => null);
             if (!res.ok) { setError(typeof data?.error === 'string' ? data.error : '임시 비밀번호 발급에 실패했습니다.'); return; }
             setTempPassword(data.tempPassword);
+            // 비밀번호 초기화는 서버에서 failed_attempts·locked_until도 함께 초기화한다(users.ts updatePassword) — 카드에도 반영한다.
+            setResult((prev) => (prev && prev !== 'not-found' ? unlock(prev) : prev));
         } catch {
             setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {
@@ -88,7 +94,8 @@ export default function AdminAppUsersPage() {
             </div>
 
             <form onSubmit={onSearch} className="flex gap-2">
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="참여자 이메일" className={inputClass} />
+                <label htmlFor="app-user-email" className="sr-only">참여자 이메일</label>
+                <input id="app-user-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="참여자 이메일" className={inputClass} />
                 <button type="submit" disabled={loading} className={`${btn} bg-[var(--color-accent)] text-white flex items-center gap-2`}>
                     <Search size={16} /> 검색
                 </button>

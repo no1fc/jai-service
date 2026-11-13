@@ -17,11 +17,16 @@ export const emailSchema = z.string().trim().toLowerCase().max(EMAIL_MAX)
 // PASSWORD_MAX(64)는 문자 수 기준이라 이모지·한글 등 멀티바이트 문자가 섞이면 72바이트를 넘을 수 있어 별도 검사한다.
 const BCRYPT_MAX_BYTES = 72;
 
+// 영문·숫자 포함 여부 검사 — 서버 스키마(passwordSchema)와 클라이언트 안내 문구(login-logic.ts의 passwordHint)가
+// 같은 정규식을 재사용해 두 쪽 판정이 어긋나지 않게 한다.
+export const PASSWORD_LETTER_REGEX = /[a-z]/i;
+export const PASSWORD_DIGIT_REGEX = /\d/;
+
 export const passwordSchema = z.string()
     .min(PASSWORD_MIN, '비밀번호는 8자 이상이어야 합니다.')
     .max(PASSWORD_MAX)
-    .regex(/[a-z]/i, '영문을 포함해 주세요.')
-    .regex(/\d/, '숫자를 포함해 주세요.')
+    .regex(PASSWORD_LETTER_REGEX, '영문을 포함해 주세요.')
+    .regex(PASSWORD_DIGIT_REGEX, '숫자를 포함해 주세요.')
     .refine(p => new TextEncoder().encode(p).length <= BCRYPT_MAX_BYTES, '비밀번호가 너무 깁니다.');
 
 export const signupSchema = z.object({
