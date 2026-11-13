@@ -6,7 +6,7 @@ import { Copy } from 'lucide-react';
 import LeadForm from '@/components/lead/LeadForm';
 import CrossBorderNotice from '@/components/privacy/CrossBorderNotice';
 import AiGeneratedBadge from '@/components/AiGeneratedBadge';
-import { COMPETENCIES, type CareerResult, type CompetencyKey } from '@/lib/career/schema';
+import { COMPETENCIES, type LegacyCareerResult as CareerResult, type CompetencyKey } from '@/lib/career/schema';
 
 type Step = 'input' | 'rating' | 'loading' | 'result';
 const SCALE = [1, 2, 3, 4, 5];

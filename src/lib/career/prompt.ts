@@ -1,7 +1,7 @@
 /**
  * 자기소개서·역량 진단 프롬프트 (순수 함수)
  */
-import { COMPETENCIES, type CareerRequest } from './schema';
+import { COMPETENCIES, type LegacyCareerRequest as CareerRequest } from './schema';
 
 export function buildCareerPrompt(req: CareerRequest): string {
     const ratings = COMPETENCIES.map(c => `- ${c.label}: ${req.ratings[c.key]}/5`).join('\n');

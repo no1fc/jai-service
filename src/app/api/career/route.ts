@@ -5,7 +5,7 @@ import { type NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { formatZodError } from '@/lib/validations';
-import { careerRequestSchema, careerResultSchema } from '@/lib/career/schema';
+import { legacyCareerRequestSchema as careerRequestSchema, legacyCareerResultSchema as careerResultSchema } from '@/lib/career/schema';
 import { buildCareerPrompt } from '@/lib/career/prompt';
 import { logger } from '@/lib/logger';
 

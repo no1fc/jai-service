@@ -2,6 +2,7 @@
  * AI 1분 자기소개서·역량 진단 스키마 (클라이언트/서버 공용)
  */
 import { z } from 'zod';
+import { COMMON_ITEMS } from './items';
 
 export const COMPETENCIES = [
     { key: 'communication', label: '의사소통' },
@@ -15,21 +16,80 @@ export const COMPETENCIES = [
 ] as const;
 
 export type CompetencyKey = typeof COMPETENCIES[number]['key'];
+const COMPETENCY_KEYS = COMPETENCIES.map(c => c.key) as [CompetencyKey, ...CompetencyKey[]];
 
 const rating = z.number().int().min(1, '역량 점수는 1~5 사이여야 합니다.').max(5, '역량 점수는 1~5 사이여야 합니다.');
 const ratingsShape = Object.fromEntries(COMPETENCIES.map(c => [c.key, rating])) as Record<CompetencyKey, typeof rating>;
 
-export const careerRequestSchema = z.object({
+/** @deprecated v1 요청 스키마. route.ts/page.tsx가 Task 8·9에서 v2로 바뀔 때까지 유지한다. */
+export const legacyCareerRequestSchema = z.object({
     desiredJob: z.string().trim().min(1, '희망 직무를 입력해주세요.').max(100),
     experience: z.string().trim().min(10, '경험을 10자 이상 적어주세요.').max(600),
     ratings: z.object(ratingsShape),
 });
+export type LegacyCareerRequest = z.infer<typeof legacyCareerRequestSchema>;
+
+/** @deprecated v1 결과 스키마. route.ts/page.tsx가 Task 8·9에서 v2로 바뀔 때까지 유지한다. */
+export const legacyCareerResultSchema = z.object({
+    coverLetter: z.string().min(1),
+    strengths: z.array(z.string()).max(5),
+    gaps: z.array(z.string()).max(5),
+    recommendedPrograms: z.array(z.string()).max(5),
+});
+export type LegacyCareerResult = z.infer<typeof legacyCareerResultSchema>;
+
+/** STAR 경험 1건. 각 항목 20~200자. */
+export const starSchema = z.object({
+    situation: z.string().trim().min(20, '상황은 20자 이상 적어주세요.').max(200),
+    task: z.string().trim().min(20, '과제는 20자 이상 적어주세요.').max(200),
+    action: z.string().trim().min(20, '행동은 20자 이상 적어주세요.').max(200),
+    result: z.string().trim().min(20, '결과는 20자 이상 적어주세요.').max(200),
+});
+export type Star = z.infer<typeof starSchema>;
+
+/** 희망직무 맞춤 문항 1개. */
+export const jobItemSchema = z.object({
+    id: z.string().regex(/^job_[1-4]$/, '맞춤 문항 id 형식이 올바르지 않습니다.'),
+    competency: z.enum(COMPETENCY_KEYS),
+    text: z.string().trim().min(20, '문항은 20자 이상이어야 합니다.').max(80),
+});
+export type JobItem = z.infer<typeof jobItemSchema>;
+
+export const jobItemsResponseSchema = z.object({
+    items: z.array(jobItemSchema).length(4),
+});
+
+const COMMON_ITEM_IDS = COMMON_ITEMS.map(item => item.id);
+
+export const careerRequestSchema = z.object({
+    desiredJob: z.string().trim().min(1, '희망 직무를 입력해주세요.').max(100),
+    experiences: z.array(starSchema).min(1, '경험을 1개 이상 입력해주세요.').max(2),
+    strengthNote: z.string().trim().max(100).default(''),
+    itemRatings: z.record(z.string().max(40), rating).refine(
+        ratings => COMMON_ITEM_IDS.every(id => id in ratings),
+        '모든 공통 문항에 응답해주세요.',
+    ),
+    jobItems: z.array(jobItemSchema).max(4).default([]),
+});
 export type CareerRequest = z.infer<typeof careerRequestSchema>;
+
+export const competencyDetailSchema = z.object({
+    key: z.enum(COMPETENCY_KEYS),
+    level: z.enum(['상', '중', '하']),
+    score: z.number().min(0).max(5),
+    explanation: z.string().min(1).max(300),
+    evidence: z.string().min(1).max(300),
+    improvement: z.string().min(1).max(300),
+    programs: z.array(z.string()).max(2),
+});
+export type CompetencyDetail = z.infer<typeof competencyDetailSchema>;
 
 export const careerResultSchema = z.object({
     coverLetter: z.string().min(1),
     strengths: z.array(z.string()).max(5),
     gaps: z.array(z.string()).max(5),
     recommendedPrograms: z.array(z.string()).max(5),
+    competencyDetails: z.array(competencyDetailSchema).length(8),
+    jobFit: z.string().min(1).max(400),
 });
 export type CareerResult = z.infer<typeof careerResultSchema>;
