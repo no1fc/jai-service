@@ -17,7 +17,7 @@ export default function ConsentBlock({ consentCollect, consentAge, onChangeColle
         <div className="rounded-[var(--radius-card)] border border-border bg-bg-elevated p-4 space-y-3">
             <div className="text-sm text-text-secondary space-y-1">
                 <p className="font-medium text-text">개인정보 수집·이용 안내</p>
-                <p>수집 항목: 카카오 회원번호·이메일(선택) 또는 휴대폰 번호</p>
+                <p>수집 항목: 카카오 회원번호·이메일(선택) 또는 이메일·비밀번호(해시)</p>
                 <p>목적: 로그인·보관함 제공</p>
                 <p>보관 기간: 마지막 로그인 후 1년</p>
                 <p><Link href="/privacy" className="text-accent underline">개인정보처리방침 전체 보기</Link></p>

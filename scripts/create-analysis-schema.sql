@@ -33,6 +33,11 @@ BEGIN
         provider VARCHAR(10) NOT NULL,
         provider_id VARCHAR(100) NOT NULL,
         email NVARCHAR(255) NULL,
+        password_hash VARCHAR(100) NULL,
+        failed_attempts TINYINT NOT NULL DEFAULT 0,
+        locked_until DATETIME2 NULL,
+        must_change_password BIT NOT NULL DEFAULT 0,
+        password_updated_at DATETIME2 NULL,
         consent_at DATETIME2 NOT NULL,
         created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
         last_login_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -66,17 +71,4 @@ BEGIN
     );
 END;
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'phone_verifications')
-BEGIN
-    CREATE TABLE phone_verifications (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        phone VARCHAR(20) NOT NULL,
-        code_hash CHAR(64) NOT NULL,
-        attempts TINYINT NOT NULL DEFAULT 0,
-        expires_at DATETIME2 NOT NULL,
-        verified_at DATETIME2 NULL,
-        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
-    );
-    CREATE INDEX IX_phone_verifications_phone ON phone_verifications (phone, created_at DESC);
-END;
 GO

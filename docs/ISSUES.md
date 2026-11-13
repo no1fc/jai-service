@@ -96,7 +96,7 @@
 
 ### ANL-05: SENS SMS API v2 전체 요청/응답 스키마 공식 문서 재확인
 
-- **상태**: [ ] 미해결
+- **상태**: [x] 해결 (2026-11-13, 휴대폰 인증 기능 제거)
 - **파일**: `src/lib/analysis/auth/sms.ts`, `src/lib/analysis/auth/sens-signature.ts`
 - **설명**: 이번 조사에서 `apidocs.ncloud.com` 접속이 실패해 공식 문서를 직접 확인하지 못했고, 2차 자료로만 교차 확인했다. SENS 계약 후 공식 문서로 요청/응답 스키마 전체를 재검증 필요.
 
