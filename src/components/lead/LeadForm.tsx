@@ -11,11 +11,12 @@ interface LeadFormProps {
     payload: Record<string, unknown>;
     defaultDesiredJob?: string;
     defaultRegion?: string;
+    onDone?: () => void;
 }
 
 const inputClass = 'w-full h-12 px-4 rounded-[var(--radius-input)] border border-border bg-bg-elevated text-text placeholder:text-text-muted focus:outline-none focus:border-accent';
 
-export default function LeadForm({ source, payload, defaultDesiredJob = '', defaultRegion = '' }: LeadFormProps) {
+export default function LeadForm({ source, payload, defaultDesiredJob = '', defaultRegion = '', onDone }: LeadFormProps) {
     const [state, setState] = useState<'idle' | 'sending' | 'done'>('idle');
     const [error, setError] = useState('');
 
@@ -42,6 +43,7 @@ export default function LeadForm({ source, payload, defaultDesiredJob = '', defa
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || '신청에 실패했습니다.');
             setState('done');
+            onDone?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : '신청에 실패했습니다.');
             setState('idle');
