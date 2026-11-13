@@ -276,3 +276,27 @@
 | 2026-11-12 | 개인정보처리방침을 관리자(최고 관리자 전용) 화면에서 실시간 미리보기와 함께 편집하도록 추가 (`/admin/settings/privacy`, `src/lib/privacy/policy.ts`) |
 | 2026-11-12 | Task 12: 법률 검토 반영 — 국외 이전 고지 보강, 리드 1년 경과 자동 파기(JAI-01 해결), AI 생성 표시 배지, 면책·약관 고의·중과실 예외, 관리자 접속기록(`admin_access_logs`), 만 14세 확인. 후속으로 JAI-09(접속기록 조회 화면), JAI-10(위탁지침 확인) 등록 |
 | 2026-11-12 | Task 12: AI 직무·산업 분석 서비스(`/analysis`) 처리방침 개정 반영 및 후속 이슈 ANL-01~07 등록 (그라운딩 표시·카카오 unlink·일일 한도 인메모리·고용24 파서 검증·SENS 문서 재확인·`/api/admin/me` role 미검사·설정 저장 403) |
+
+### JAI-11: 모의진단 안내 후 시작 오류·첫 질문 건너뜀 — 해결
+
+- **상태**: [x] **해결 (2026-11-13)**
+- **파일**: `src/hooks/useChat.ts`(`toReceivePayload`), `src/lib/prompts.ts`(`DEFAULT_INFO_MESSAGE.currentStep`)
+- **해결 내용**: 안내(info) 메시지를 `history`(서버 전송용 대화 기록)에서 제외해 `/api/chat` 요청이 `chatRequestSchema`의 메시지당 1000자 제한을 넘지 않도록 수정. 안내문의 `currentStep`을 0으로 고정해 "시작하겠습니다" 이후 나이 질문이 건너뛰어지지 않도록 함께 수정.
+
+### JAI-12: 참여 제한 결과에서 지점 미조회 — 해결
+
+- **상태**: [x] **해결 (2026-11-13)**
+- **파일**: `src/lib/eligibility/branch-lookup.ts`(신규, `shouldLookupBranch`), `src/components/chat/ChatContainer.tsx`
+- **해결 내용**: 판정 유형이 `'제한'`이어도(그 외 유형과 동일하게) 결과 화면 진입 시 지점을 조회하도록 순수 함수 `shouldLookupBranch`로 조회 조건을 교체. `'제한'` 결과에서도 지점 카드·상담 신청 모달이 정상 표시됨.
+
+### JAI-13: 모순 규칙은 7개로 시작(사업소득자 질문 추가 시 확장, JAI-06 연계) — 미해결
+
+- **상태**: [ ] 미해결
+- **파일**: `src/lib/eligibility/consistency.ts`
+- **설명**: 모순 검사 규칙(C1~C7, error 5개·warn 2개)은 현재 운영 중인 질문 체계만 다룬다. JAI-06(사업소득자 분기) 질문이 추가되면 모순 규칙도 함께 확장해야 한다.
+
+### JAI-14: 비밀번호 변경 시 세션 무효화 불가(공유 세션 저장소 필요) — 미해결
+
+- **상태**: [ ] 미해결 (스트림 2 참조용)
+- **파일**: `src/lib/analysis/auth/local.ts`
+- **설명**: 단일 세션 쿠키 구조라 비밀번호 변경 후에도 기존 로그인 세션이 유지된다(서버 세션 저장소가 없어 무효화 불가). JAI-03(rate-limit 공유 저장소)과 함께 Redis 등 공유 저장소 도입 시 해결 가능.
