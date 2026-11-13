@@ -8,7 +8,7 @@ import AiGeneratedBadge from '@/components/AiGeneratedBadge';
 import StarInput from '@/components/career/StarInput';
 import ItemsStep from '@/components/career/ItemsStep';
 import CompetencyDetail from '@/components/career/CompetencyDetail';
-import { hasValidExperience, useCareerFlow } from '@/components/career/use-career-flow';
+import { canProceedToItems, isStarComplete, useCareerFlow } from '@/components/career/use-career-flow';
 
 type Tab = 'letter' | 'skills' | 'programs';
 const TAB_LABEL: Record<Tab, string> = { letter: '자기소개서', skills: '역량 상세', programs: '추천 프로그램' };
@@ -49,7 +49,7 @@ export default function CareerPage() {
                     experiences={flow.experiences} onExperienceChange={flow.setExperience}
                     onAddExperience={flow.addExperience} onRemoveExperience={flow.removeExperience}
                     strengthNote={flow.strengthNote} onStrengthNoteChange={flow.setStrengthNote}
-                    canProceed={hasValidExperience(flow.experiences)} onNext={flow.goToItems}
+                    canProceed={canProceedToItems(flow.desiredJob, flow.experiences)} onNext={flow.goToItems}
                 />
             )}
 
@@ -120,7 +120,7 @@ export default function CareerPage() {
                     )}
 
                     <LeadForm source="career" defaultDesiredJob={flow.desiredJob} payload={{
-                        desiredJob: flow.desiredJob, experiences: flow.experiences, strengthNote: flow.strengthNote,
+                        desiredJob: flow.desiredJob, experiences: flow.experiences.filter(isStarComplete), strengthNote: flow.strengthNote,
                         itemRatings: flow.itemRatings, competencyScores: flow.competencyScores, jobItems: flow.jobItems, result: flow.result,
                     }} />
                 </>

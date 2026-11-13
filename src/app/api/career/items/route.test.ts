@@ -55,6 +55,23 @@ describe('POST /api/career/items', () => {
         expect(generateResponse).not.toHaveBeenCalled();
     });
 
+    it('맞춤 문항은 챗 모델(분석 모델이 아님)로 요청한다', async () => {
+        vi.mocked(getCachedJobItems).mockResolvedValue(null);
+        vi.mocked(generateResponse).mockResolvedValue(fakeAiResponse('ai raw text'));
+        vi.mocked(safeParseJSON).mockReturnValue({ items: validItems });
+        await POST(postRequest({ desiredJob: '웹 개발' }));
+        expect(generateResponse).toHaveBeenCalledWith(expect.any(String), expect.any(String));
+    });
+
+    it('캐시 테이블이 없어 getCachedJobItems가 예외를 던지면 200 {items: []}를 반환하고 AI를 호출하지 않는다', async () => {
+        vi.mocked(getCachedJobItems).mockRejectedValue(new Error("Invalid object name 'career_job_items'."));
+        const res = await POST(postRequest({ desiredJob: '웹 개발' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json).toEqual({ success: true, items: [] });
+        expect(generateResponse).not.toHaveBeenCalled();
+    });
+
     it('캐시 적중이면 generateResponse를 호출하지 않고 캐시 문항을 반환한다', async () => {
         vi.mocked(getCachedJobItems).mockResolvedValue(validItems);
         const res = await POST(postRequest({ desiredJob: '웹 개발' }));

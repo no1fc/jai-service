@@ -50,8 +50,15 @@ export const careerRequestSchema = z.object({
     itemRatings: z.record(z.string().max(40), rating).refine(
         ratings => COMMON_ITEM_IDS.every(id => id in ratings),
         '모든 공통 문항에 응답해주세요.',
+    ).refine(
+        // 공통 16 + 맞춤 최대 4 = 20이 최대. 그 이상은 비정상 요청으로 거부한다.
+        ratings => Object.keys(ratings).length <= 20,
+        '문항 응답 수가 올바르지 않습니다.',
     ),
-    jobItems: z.array(jobItemSchema).max(4).default([]),
+    jobItems: z.array(jobItemSchema).max(4).refine(
+        items => new Set(items.map(i => i.id)).size === items.length,
+        '맞춤 문항 id가 중복되었습니다.',
+    ).default([]),
 });
 export type CareerRequest = z.infer<typeof careerRequestSchema>;
 
@@ -67,7 +74,8 @@ export const competencyDetailSchema = z.object({
 export type CompetencyDetail = z.infer<typeof competencyDetailSchema>;
 
 export const careerResultSchema = z.object({
-    coverLetter: z.string().min(1),
+    // 리드 payload 상한(20,000자) 대비 — 결과 전체(STAR·문항 응답 포함)가 그 안에 들어오도록 자소서 본문 길이를 제한한다.
+    coverLetter: z.string().min(1).max(1500),
     strengths: z.array(z.string()).max(5),
     gaps: z.array(z.string()).max(5),
     recommendedPrograms: z.array(z.string()).max(5),

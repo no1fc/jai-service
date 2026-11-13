@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
         const { generateResponse, safeParseJSON } = await import('@/lib/gemini');
         const { logApiUsage } = await import('@/lib/db');
         const prompt = buildJobItemsPrompt(parsed.data.desiredJob);
-        const ai = await generateResponse(prompt, '맞춤 문항 4개를 만들어 주세요.', true);
+        // 맞춤 문항은 짧은 생성이라 분석 모델이 아닌 챗 모델(flash-lite)을 쓴다(설계서 7.1).
+        const ai = await generateResponse(prompt, '맞춤 문항 4개를 만들어 주세요.');
         await logApiUsage(ai.modelName, ai.usageMetadata?.promptTokenCount || 0,
             ai.usageMetadata?.candidatesTokenCount || 0, ai.usageMetadata?.totalTokenCount || 0, 'career_items');
 

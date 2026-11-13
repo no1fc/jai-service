@@ -6,6 +6,10 @@
 import { useRef, useState, type RefObject } from 'react';
 import { careerRequestSchema, starSchema, type CareerRequest, type CareerResult, type CompetencyKey, type JobItem, type Star } from '@/lib/career/schema';
 import { COMMON_ITEMS, ITEMS_PER_PAGE, type CareerItem } from '@/lib/career/items';
+import { formatZodError } from '@/lib/validations';
+
+/** 맞춤 문항 요청의 타임아웃(ms). 설계서 7.1: 실패·타임아웃(5초)이면 맞춤 문항 없이 진행. */
+const JOB_ITEMS_TIMEOUT_MS = 5000;
 
 export type CareerStep = 'input' | 'items' | 'jobItems' | 'waitingJobItems' | 'loading' | 'result';
 export type JobItemsStatus = 'idle' | 'loading' | 'ready';
@@ -19,9 +23,14 @@ export function isStarComplete(star: Star): boolean {
     return starSchema.safeParse(star).success;
 }
 
-/** 경험 중 유효한 STAR가 1개 이상 있는지 — "다음: 역량 체크" 버튼 활성 조건. */
+/** 경험 중 유효한 STAR가 1개 이상 있는지. */
 export function hasValidExperience(experiences: readonly Star[]): boolean {
     return experiences.some(isStarComplete);
+}
+
+/** "다음: 역량 체크" 버튼 활성 조건 — 희망 직무를 입력했고 유효한 STAR가 1개 이상 있어야 한다. */
+export function canProceedToItems(desiredJob: string, experiences: readonly Star[]): boolean {
+    return desiredJob.trim().length > 0 && hasValidExperience(experiences);
 }
 
 /** 문항 목록에서 page(0부터)에 해당하는 4개를 자른다. */
@@ -96,22 +105,26 @@ export function buildCareerRequestPayload(input: {
     itemRatings: Record<string, number>;
     jobItems: readonly JobItem[];
 }): CareerRequest {
-    return careerRequestSchema.parse({
+    const parsed = careerRequestSchema.safeParse({
         desiredJob: input.desiredJob,
         experiences: input.experiences.filter(isStarComplete),
         strengthNote: input.strengthNote,
         itemRatings: input.itemRatings,
         jobItems: input.jobItems,
     });
+    // ZodError를 그대로 던지면 toErrorMessage가 그 JSON을 화면에 노출하므로, 사람이 읽을 문구로 바꿔 던진다.
+    if (!parsed.success) throw new Error(formatZodError(parsed.error));
+    return parsed.data;
 }
 
-/** 맞춤 문항 API를 호출해 문항 배열을 돌려준다. 실패·빈 응답이면 빈 배열(맞춤 문항 없이 진행). */
+/** 맞춤 문항 API를 호출해 문항 배열을 돌려준다. 실패·타임아웃(5초)·빈 응답이면 빈 배열(맞춤 문항 없이 진행). */
 async function fetchJobItems(desiredJob: string): Promise<JobItem[]> {
     try {
         const res = await fetch('/api/career/items', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ desiredJob }),
+            signal: AbortSignal.timeout(JOB_ITEMS_TIMEOUT_MS),
         });
         const data = await res.json();
         return res.ok && Array.isArray(data.items) ? data.items : [];

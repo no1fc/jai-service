@@ -54,6 +54,18 @@ describe('career request v2', () => {
         ];
         expect(careerRequestSchema.safeParse({ ...req, jobItems }).success).toBe(false);
     });
+
+    it('jobItems id가 중복되면(개수는 4개 이하여도) 거부한다', () => {
+        const jobItem = { id: 'job_1', competency: 'communication', text: '맞춤 문항 텍스트를 20자 이상으로 채운다' };
+        const jobItems = [jobItem, { ...jobItem, id: 'job_1' }];
+        expect(careerRequestSchema.safeParse({ ...req, jobItems }).success).toBe(false);
+    });
+
+    it('itemRatings 키 수가 20개를 넘으면 거부한다', () => {
+        const bloatedRatings = { ...itemRatings, ...Object.fromEntries(['job_1', 'job_2', 'job_3', 'job_4', 'job_5'].map(id => [id, 3])) };
+        expect(Object.keys(bloatedRatings).length).toBe(21);
+        expect(careerRequestSchema.safeParse({ ...req, itemRatings: bloatedRatings }).success).toBe(false);
+    });
 });
 
 describe('careerResultSchema v2', () => {
@@ -83,6 +95,13 @@ describe('careerResultSchema v2', () => {
     it('competencyDetailSchema는 역량·수준·점수·근거·프로그램을 검증한다', () => {
         expect(competencyDetailSchema.safeParse(competencyDetail).success).toBe(true);
         expect(competencyDetailSchema.safeParse({ ...competencyDetail, level: '최상' }).success).toBe(false);
+    });
+
+    it('coverLetter가 1500자를 넘으면 거부한다(리드 payload 상한 20,000자 대비)', () => {
+        const valid = { ...result, coverLetter: 'a'.repeat(1500), competencyDetails: COMPETENCIES.map(c => ({ ...competencyDetail, key: c.key })) };
+        expect(careerResultSchema.safeParse(valid).success).toBe(true);
+        const tooLong = { ...valid, coverLetter: 'a'.repeat(1501) };
+        expect(careerResultSchema.safeParse(tooLong).success).toBe(false);
     });
 });
 
@@ -118,6 +137,11 @@ describe('buildCareerPrompt v2', () => {
         expect(prompt).toContain('바꾸지 말 것');
         expect(prompt).toContain('취업역량 강화 프로그램');
         expect(prompt).toContain('"competencyDetails"');
+    });
+
+    it('recommendedPrograms 지시는 후보 목록 그대로를 요구하고 설명 문장을 금지한다(route.ts의 정확 일치 필터와 합치)', () => {
+        const prompt = buildCareerPrompt(req, scores, levels, COMMON_ITEMS);
+        expect(prompt).toContain('그대로 2~3개(설명 문장 금지)');
     });
 
     it('입력 속 지시문은 데이터 블록 안에만 들어가고 그 밖으로 새지 않는다', () => {

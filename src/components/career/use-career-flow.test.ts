@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildCareerRequestPayload,
+    canProceedToItems,
     clearJobRatings,
     COMMON_PAGE_COUNT,
     currentItemPageNumber,
@@ -32,6 +33,19 @@ describe('isStarComplete / hasValidExperience', () => {
     it('빈 STAR는 유효하지 않다', () => expect(isStarComplete(emptyStar)).toBe(false));
     it('경험 중 하나라도 유효하면 true', () => expect(hasValidExperience([emptyStar, validStar])).toBe(true));
     it('모두 무효하면 false', () => expect(hasValidExperience([emptyStar])).toBe(false));
+});
+
+describe('canProceedToItems', () => {
+    it('희망 직무가 비어 있으면 유효한 STAR가 있어도 false(회귀: 희망 직무 미입력 진행 방지)', () => {
+        expect(canProceedToItems('', [validStar])).toBe(false);
+        expect(canProceedToItems('   ', [validStar])).toBe(false);
+    });
+    it('희망 직무를 입력하고 유효한 STAR가 있으면 true', () => {
+        expect(canProceedToItems('웹 개발자', [validStar])).toBe(true);
+    });
+    it('희망 직무를 입력해도 유효한 STAR가 없으면 false', () => {
+        expect(canProceedToItems('웹 개발자', [emptyStar])).toBe(false);
+    });
 });
 
 describe('paginateItems', () => {
@@ -124,10 +138,19 @@ describe('buildCareerRequestPayload', () => {
         expect(body.experiences).toEqual([validStar]);
         expect(body.desiredJob).toBe('웹 개발자');
     });
-    it('공통 문항 응답이 빠지면 예외를 던진다', () => {
+    it('공통 문항 응답이 빠지면 사람이 읽을 수 있는 문구로 예외를 던진다(회귀: ZodError JSON 노출 방지)', () => {
         const rest = { ...base.itemRatings };
         delete rest[COMMON_ITEMS[0].id];
-        expect(() => buildCareerRequestPayload({ ...base, itemRatings: rest })).toThrow();
+        try {
+            buildCareerRequestPayload({ ...base, itemRatings: rest });
+            expect.unreachable();
+        } catch (err) {
+            expect(err).toBeInstanceOf(Error);
+            const message = (err as Error).message;
+            expect(message).toBe('모든 공통 문항에 응답해주세요.');
+            expect(message.trim().startsWith('{')).toBe(false);
+            expect(message.trim().startsWith('[')).toBe(false);
+        }
     });
 });
 
