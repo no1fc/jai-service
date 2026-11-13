@@ -18,6 +18,7 @@ npm test             # Vitest (src/**/*.test.ts)
 ## Architecture Overview
 
 J.AI (잡모아 AI 취업 도우미) helps surface potential 국민취업지원제도(국취) participants and convert them into 상담 신청 via AI tools: a Q&A bot (`/ask`), a rule-based eligibility self-diagnosis (`/chat`), and an AI self-introduction/competency check (`/career`). Leads flow into MSSQL `leads` for admin/counselor follow-up.
+- `/analysis` — AI 직무·산업 분석. 고용24 공개데이터 + Gemini로 리포트를 생성하고(경쟁사 데이터 옵션 ON 시 Google Search 포함 연구 호출 + 리포트 호출 2단계, OFF 시 1단계), 카카오/휴대폰 인증 로그인 회원은 서버 보관함에, 비로그인은 localStorage에 리포트를 저장한다.
 
 **Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, MSSQL (mssql/tedious), Google Gemini API (`@google/genai`), Vitest
 
@@ -43,6 +44,7 @@ J.AI (잡모아 AI 취업 도우미) helps surface potential 국민취업지원�
 - **`src/lib/qna/`** — 국취 24시 Q&A 봇(`/ask`)용 지식 문서(`knowledge.ts`)와 프롬프트(`prompt.ts`).
 - **`src/lib/career/`** — AI 1분 자기소개서·역량 진단(`/career`)의 입출력 스키마와 프롬프트.
 - **`src/lib/report/`** — 상담사 AI 리포트 프롬프트·스키마. 이름·연락처는 AI에 전송하지 않음(`maskPhone` 등 참고).
+- **`src/lib/analysis/`** — AI 직무·산업 분석(`/analysis`) 생성 파이프라인(`generate.ts`), 고용24 연동(`work24.ts`), 카카오/휴대폰 인증 로그인(`auth/`), 서버 PDF 렌더링(`pdf/`).
 
 ### Admin Dashboard
 
@@ -66,6 +68,7 @@ Required in `.env.local`:
 - `JWT_SECRET_KEY` — JWT signing secret (MUST be set in production, no fallback allowed)
 - `MSSQL_HOST`, `MSSQL_PORT`, `MSSQL_USER`, `MSSQL_PASSWORD`, `MSSQL_DATABASE` — MSSQL connection
 - `MSSQL_ENCRYPT`, `MSSQL_TRUST_SERVER_CERTIFICATE` — MSSQL TLS options
+- `SMS_PROVIDER` — `log`(기본, 콘솔에 인증번호 로그) 또는 `sens`(네이버 클라우드 SENS로 실제 발송). 운영에서는 `sens`만 허용(`log`면 503).
 
 ## Harness Configuration
 
@@ -88,3 +91,5 @@ Required in `.env.local`:
 - **Native packages**: `pdfjs-dist`, `mssql`, `canvas` are configured as `serverExternalPackages` in `next.config.ts` to prevent bundling issues.
 - **API responses**: Not yet standardized — some routes return `{ success, data }`, others return raw objects. See `docs/ISSUES.md` for tracked inconsistencies.
 - **Known issues**: `docs/ISSUES.md` tracks 21 codebase issues by priority (security, architecture, code quality, design, DX).
+- 분석 테이블은 `initSchema`가 만들지 않음 — `scripts/create-analysis-schema.sql`
+- 고용24·SENS·카카오 자격증명은 환경변수가 아니라 `system_settings`(`getSetting`)로 관리 — `/admin/settings` > API 설정 > 외부 연동에서 입력

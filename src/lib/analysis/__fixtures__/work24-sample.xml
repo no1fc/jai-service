@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wantedRoot>
+  <total>137</total><startPage>1</startPage><display>2</display>
+  <wanted>
+    <wantedAuthNo>K120012511110001</wantedAuthNo><company><![CDATA[(주)핀테크랩]]></company>
+    <title><![CDATA[핀테크 서비스 PM &amp; 기획]]></title>
+    <salTpNm>연봉</salTpNm><sal>4,000만원 이상</sal><minSal>4000</minSal><maxSal>5500</maxSal>
+    <region>서울 강남구</region><empTpCd>10</empTpCd><closeDt>2026-12-31</closeDt>
+    <wantedInfoUrl>https://www.work24.go.kr/wk/a/b/1200/retriveDtlEmpSrchList.do?wantedAuthNo=K120012511110001</wantedInfoUrl>
+  </wanted>
+  <wanted>
+    <wantedAuthNo>K120012511110002</wantedAuthNo><company>스타트업A</company>
+    <title>프로덕트 매니저</title>
+    <salTpNm>월급</salTpNm><sal>300만원</sal><minSal>300</minSal><maxSal></maxSal>
+    <region>경기 성남시 분당구</region><empTpCd>11</empTpCd><closeDt>채용시까지</closeDt>
+    <wantedInfoUrl>https://www.work24.go.kr/wk/a/b/1200/retriveDtlEmpSrchList.do?wantedAuthNo=K120012511110002</wantedInfoUrl>
+  </wanted>
+</wantedRoot>

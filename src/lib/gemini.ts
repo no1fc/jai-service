@@ -21,6 +21,8 @@ export interface GeminiResponse {
         totalTokenCount: number;
     } | null;
     modelName: string;
+    sources: Array<{ title: string; uri: string }>;
+    searchEntryPoint: string | null;
 }
 
 // 모델 폴백 경고를 프로세스당 (설정키→대체 모델) 조합마다 한 번만 로그하기 위한 기록.
@@ -38,17 +40,54 @@ export function isRetryableGeminiError(error: unknown): boolean {
 }
 
 /**
+ * generateContent 호출용 config를 만든다(순수 함수).
+ * googleSearch 사용 시 responseMimeType('application/json')을 넣지 않는다 — Gemini가 JSON 강제 모드와
+ * 검색 그라운딩을 함께 쓰면 groundingMetadata(출처)를 비워 반환하는 현상이 있어, 호출 1회를 유지하기 위해
+ * 이 경우만 JSON 모드를 끈다. JSON 형식은 프롬프트가 이미 요구하므로 파싱은 safeParseJSON + Zod 검증이 담당한다.
+ */
+export function buildGeminiConfig(maxOutputTokens: number, options: { googleSearch?: boolean } = {}) {
+    const base = {
+        temperature: 0.1,
+        maxOutputTokens,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+    };
+    return options.googleSearch
+        ? { ...base, tools: [{ googleSearch: {} }] }
+        : { ...base, responseMimeType: 'application/json' as const };
+}
+
+const HTTP_URL_RE = /^https?:\/\//i;
+
+/** 그라운딩 메타데이터에서 출처와 검색 제안 HTML을 뽑는다(없으면 빈 값).
+ * http(s) 스킴이 아닌 URL은 제외하고, 같은 uri가 여러 번 나오면 먼저 나온 것만 남긴다
+ * (중복 uri가 React 리스트의 key로 쓰이면서 중복 key 오류가 나던 문제의 근본 수정). */
+export function extractGrounding(candidate: { groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>; searchEntryPoint?: { renderedContent?: string } } } | undefined) {
+    const chunks = candidate?.groundingMetadata?.groundingChunks ?? [];
+    const seen = new Set<string>();
+    const sources: Array<{ uri: string; title: string }> = [];
+    for (const c of chunks) {
+        const uri = c.web?.uri;
+        if (!uri || !HTTP_URL_RE.test(uri) || seen.has(uri)) continue;
+        seen.add(uri);
+        sources.push({ uri, title: c.web?.title || uri });
+    }
+    return { sources, searchEntryPoint: candidate?.groundingMetadata?.searchEntryPoint?.renderedContent ?? null };
+}
+
+/**
  * Gemini 모델에 메시지를 전송하고 응답을 받는 함수
  * 키 실패(401/403/429/503 등) 시 다음 등록된 키로 순차 재시도
  * @param systemPrompt - AI의 역할과 제약을 정의하는 시스템 프롬프트
  * @param userMessage - 사용자 메시지 또는 분석 요청
  * @param useAnalysisModel - true이면 분석용 모델(gemini_analysis_model_name) 사용, 기본은 일반 챗 모델(gemini_model_name)
- * @returns 텍스트 응답, 토큰 사용량, 모델 이름이 포함된 객체
+ * @param options - googleSearch: true면 Google 검색 그라운딩 도구를 활성화
+ * @returns 텍스트 응답, 토큰 사용량, 모델 이름, 그라운딩 출처가 포함된 객체
  */
 export async function generateResponse(
     systemPrompt: string,
     userMessage: string,
-    useAnalysisModel: boolean = false
+    useAnalysisModel: boolean = false,
+    options: { googleSearch?: boolean } = {}
 ): Promise<GeminiResponse> {
     const keysRaw = await getSetting('gemini_api_keys');
     let keys: string[] = [];
@@ -98,12 +137,7 @@ export async function generateResponse(
             const response = await ai.models.generateContent({
                 model: configuredModel,
                 contents: fullPrompt,
-                config: {
-                    temperature: 0.1,
-                    maxOutputTokens,
-                    responseMimeType: 'application/json',
-                    thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-                },
+                config: buildGeminiConfig(maxOutputTokens, options),
             });
 
             const usage = response.usageMetadata;
@@ -118,6 +152,7 @@ export async function generateResponse(
                     totalTokenCount: usage.totalTokenCount ?? 0,
                 } : null,
                 modelName: configuredModel,
+                ...extractGrounding(response.candidates?.[0]),
             };
 
         } catch (error: unknown) {
@@ -144,16 +179,26 @@ export async function generateResponse(
 
 /**
  * Gemini 응답 텍스트에서 JSON을 안전하게 파싱하는 함수
- * JSON 파싱 실패 시 null 반환
+ * 마크다운 코드블록 제거 후에도 실패하면(그라운딩 응답은 JSON 앞뒤에 설명 문장이 붙을 수 있음)
+ * 첫 "{"부터 마지막 "}"까지만 잘라 한 번 더 시도한다. 그래도 실패하면 null 반환.
  * @param text - Gemini 응답 원시 텍스트
  * @returns 파싱된 객체 또는 null
  */
 export function safeParseJSON<T>(text: string): T | null {
+    // 마크다운 코드 블록 제거 (```json ... ``` 형태 대응)
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     try {
-        // 마크다운 코드 블록 제거 후 파싱 (```json ... ``` 형태 대응)
-        const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         return JSON.parse(cleaned) as T;
     } catch {
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+        if (start !== -1 && end > start) {
+            try {
+                return JSON.parse(cleaned.slice(start, end + 1)) as T;
+            } catch {
+                // 중괄호 구간을 잘라도 실패하면 아래에서 null 처리
+            }
+        }
         // JSON 파싱 실패 시 null 반환. 로그에는 원문 앞 200자만 남긴다(긴 응답으로 로그가 오염되는 것 방지).
         logger.error('JSON 파싱 실패:', text.slice(0, 200));
         return null;

@@ -17,12 +17,14 @@ import {
     Lock,
     BarChart3,
     Inbox,
-    ShieldCheck
+    ShieldCheck,
+    Briefcase
 } from 'lucide-react';
 
 const SIDEBAR_ITEMS = [
     { name: '대시보드', href: '/admin', icon: LayoutDashboard, requiresSuperAdmin: false },
     { name: '상담 신청', href: '/admin/leads', icon: Inbox, requiresSuperAdmin: false },
+    { name: '직무·산업 분석', href: '/admin/analysis', icon: Briefcase, requiresSuperAdmin: false },
     { name: '사용량 통계', href: '/admin/usage', icon: BarChart3, requiresSuperAdmin: false },
     { name: '지점 등록', href: '/admin/branches', icon: Building2, requiresSuperAdmin: false },
     { name: '관리자 지정', href: '/admin/users', icon: Users, requiresSuperAdmin: true },

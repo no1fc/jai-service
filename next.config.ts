@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   // 서버 사이드에서 번들링하지 않고 외부 패키지로 처리할 모듈 목록
-  serverExternalPackages: ['mssql'],
+  serverExternalPackages: ['mssql', '@react-pdf/renderer'],
 };
 
 export default nextConfig;

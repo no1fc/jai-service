@@ -51,7 +51,12 @@ export async function GET() {
             return maskIfNeeded(val);
         };
 
-        const targetApiKeys = ['gemini_api_key', 'kakao_map_api_key', 'gemini_api_keys', 'kakao_map_api_keys'];
+        const targetApiKeys = [
+            'gemini_api_key', 'kakao_map_api_key', 'gemini_api_keys', 'kakao_map_api_keys',
+            // 외부 연동(Task 11) — 단일 비밀값 5종. kakao_redirect_uri·sens_service_id·sens_sender는
+            // 식별자/URL이라 마스킹 대상이 아니다(원문 그대로 노출해도 되는 값).
+            'work24_api_key', 'sens_access_key', 'sens_secret_key', 'kakao_rest_api_key', 'kakao_client_secret',
+        ];
 
         targetApiKeys.forEach(tKey => {
             if (settings[tKey]) {

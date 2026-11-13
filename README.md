@@ -29,6 +29,12 @@ J.AI는 국민취업지원제도(국취) 잠재 참여자를 AI로 발굴하고 
 - **사용량 모니터링**: API 토큰 사용량 확인 및 분석.
 - **개인정보처리방침 관리**: 공개 `/privacy` 페이지 본문을 관리자 화면(최고 관리자 전용)에서 실시간 미리보기와 함께 편집.
 
+### 6. AI 직무·산업 분석 (`/analysis`)
+
+- 직무 또는 산업을 입력하면 고용24 공개데이터 + Google Gemini로 분석 리포트를 생성(경쟁사 데이터 옵션 ON 시 Google Search 포함 연구 호출 + 리포트 호출 2단계, OFF 시 1단계).
+- 카카오 로그인 또는 휴대폰 인증 로그인 회원은 서버 보관함에, 비로그인 이용자는 브라우저 localStorage에 리포트를 보관하며 PDF로 내려받을 수 있다.
+- 관리자 `/admin/analysis`에서 생성 현황 대시보드와 보관함 검색을 제공.
+
 ---
 
 ## 기술 스택
@@ -71,7 +77,12 @@ NEXT_PUBLIC_KAKAO_MAP_API_KEY=your_kakao_key
 # 초기 관리자 계정 (시드 스크립트용)
 NESS_ADMIN_ID=admin
 NESS_ADMIN_PASSWORD=your_admin_password
+
+# AI 직무·산업 분석 - 문자 인증 발송 방식 (log: 콘솔 로그, sens: 네이버 클라우드 SENS 실제 발송)
+SMS_PROVIDER=log
 ```
+
+고용24·카카오·SENS 자격증명은 `.env.local`이 아니라 관리자 화면 `/admin/settings/api-keys` > "외부 연동"에서 입력한다(저장은 `superadmin` 역할만 가능). 키 발급·등록 방법은 [docs/외부연동-설정.md](docs/외부연동-설정.md) 참고.
 
 ---
 
@@ -100,6 +111,20 @@ npm test
 ```bash
 npm run build
 npm run start
+```
+
+---
+
+## 분석 서비스 DB 준비
+
+AI 직무·산업 분석(`/analysis`) 테이블은 `initSchema`가 자동 생성하지 않으므로, 아래 스크립트를 수동으로 실행해야 한다.
+
+```bash
+# 1) 분석 서비스 테이블 생성 (최초 1회)
+sqlcmd -S <서버> -d <DB> -i scripts/create-analysis-schema.sql
+
+# 2) 만료된 인증번호(1일)·1년 미이용 계정 정리 (캐시된 리포트는 삭제하지 않음, 운영은 cron 03:10 권장, 배포.md (l)항 참고)
+sqlcmd -S <서버> -d <DB> -i scripts/purge-analysis-data.sql
 ```
 
 ---

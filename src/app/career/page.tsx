@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import { Copy } from 'lucide-react';
 import LeadForm from '@/components/lead/LeadForm';
 import CrossBorderNotice from '@/components/privacy/CrossBorderNotice';
@@ -118,6 +119,7 @@ export default function CareerPage() {
 
             {step === 'result' && result && (
                 <>
+                    <Link href={`/analysis?type=job&keyword=${encodeURIComponent(desiredJob)}`} className="text-sm text-accent underline">&quot;{desiredJob}&quot; 직무 분석 리포트 보기 →</Link>
                     <div role="tablist" className="grid grid-cols-2 gap-2">
                         {(['letter', 'skills'] as const).map(t => (
                             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
