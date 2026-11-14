@@ -16,11 +16,13 @@ export interface SuggestReportSource {
  * @param query 사용자가 입력 중인 토큰(정규화 전)
  * @param fromReports findJobReportsByPrefix 결과(접두 일치 리포트)
  * @param seeds 정적 직무명 시드(job-seeds.ts) — 정규화된 query를 부분 포함할 때만 후보에 넣는다
+ * @param aiSuggestions 2단계(선택) AI 폴백 결과 — 1단계(리포트·시드) 뒤에 이어 붙인다
  */
 export function mergeSuggestions(
     query: string,
     fromReports: SuggestReportSource[],
     seeds: readonly string[],
+    aiSuggestions: readonly string[] = [],
 ): string[] {
     const normQuery = normalizeKeyword(query);
     const seen = new Set<string>([normQuery]);
@@ -41,6 +43,7 @@ export function mergeSuggestions(
     for (const seed of seeds) {
         if (normalizeKeyword(seed).includes(normQuery)) add(seed);
     }
+    for (const ai of aiSuggestions) add(ai);
 
     return result.slice(0, SUGGEST_MAX);
 }

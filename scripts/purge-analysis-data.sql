@@ -7,3 +7,7 @@ DECLARE @cut DATETIME2 = DATEADD(year, -1, SYSUTCDATETIME());
 UPDATE analysis_requests SET user_id = NULL
     WHERE user_id IN (SELECT id FROM app_users WHERE last_login_at < @cut);
 DELETE FROM app_users WHERE last_login_at < @cut;
+
+-- 유사 직무 추천 2단계(AI 폴백) 캐시 30일 경과분 삭제 (Task 21, D-9 2단계). 테이블이 없으면(스크립트 미실행) 건너뛴다.
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'analysis_suggestions')
+    DELETE FROM analysis_suggestions WHERE created_at < DATEADD(day, -30, SYSUTCDATETIME());

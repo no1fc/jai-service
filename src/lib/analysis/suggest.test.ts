@@ -36,4 +36,14 @@ describe('mergeSuggestions', () => {
     it('빈 입력이면 빈 배열을 반환한다', () => {
         expect(mergeSuggestions('질의', [], [])).toEqual([]);
     });
+
+    it('AI 폴백 결과(4번째 인자)는 리포트·시드 뒤에 이어 붙이고 중복을 제거한다', () => {
+        const result = mergeSuggestions('핀테', [{ keyword: '핀테크 PM', relatedJobs: [] }], [], ['핀테크 PM', '그로스 PM']);
+        expect(result).toEqual(['핀테크 PM', '그로스 PM']);
+    });
+
+    it('AI 폴백 결과를 더해도 최대 SUGGEST_MAX개로 자른다', () => {
+        const ai = Array.from({ length: 7 }, (_, i) => `AI직무${i}`);
+        expect(mergeSuggestions('질의', [], [], ai)).toHaveLength(SUGGEST_MAX);
+    });
 });
