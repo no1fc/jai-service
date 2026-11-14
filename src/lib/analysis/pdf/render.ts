@@ -31,12 +31,19 @@ function sanitizeForFileName(value: string): string {
 }
 
 /**
- * PDF 다운로드 파일명 — 예: `J.AI_직무분석_핀테크PM_2026-11-12.pdf`.
+ * PDF 다운로드 파일명 — 단일: `J.AI_직무분석_핀테크PM_2026-11-12.pdf`,
+ * 비교(`kind==='compare'`): `J.AI_직무비교_핀테크PM_외2_2026-11-13.pdf`(설계서 5.6).
  * 키워드가 전부 안전하지 않은 문자로만 이루어져도(이모지 등) 빈 문자열이 되지 않도록 대체 문자열을 쓴다.
  */
 export function pdfFileName(report: PublicReport): string {
+    const createdDate = report.createdAt.slice(0, 10);
+    if (report.kind === 'compare') {
+        const typeShort = sanitizeForFileName(ANALYSIS_TYPE_LABEL[report.type].replace(' 분석', ''));
+        const first = sanitizeForFileName(report.keywords[0] ?? '') || '키워드';
+        const restCount = report.keywords.length - 1;
+        return `J.AI_${typeShort}비교_${first}_외${restCount}_${createdDate}.pdf`;
+    }
     const typeLabel = sanitizeForFileName(ANALYSIS_TYPE_LABEL[report.type]);
     const keyword = sanitizeForFileName(report.keyword) || '키워드';
-    const createdDate = report.createdAt.slice(0, 10);
     return `J.AI_${typeLabel}_${keyword}_${createdDate}.pdf`;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pdfFileName, renderReportPdf } from './render';
-import type { IndustryReport, JobReport, PublicReport } from '../schema';
+import type { CompareReport, IndustryReport, JobReport, PublicReport } from '../schema';
 
 const jobContent: JobReport = {
     title: '핀테크 PM', summary: '핀테크 서비스의 기획·운영을 총괄하는 직무입니다.', aliases: ['프로덕트 매니저'],
@@ -29,6 +29,32 @@ const industryContent: IndustryReport = {
     hiring: { summary: '개발·기획 인력 채용이 활발합니다.', demandLevel: 'medium', postingCount: 54, topRegions: ['서울', '경기'], inDemandRoles: ['백엔드 개발자'] },
     promisingJobs: [{ name: '백엔드 개발자', reason: '결제 인프라 수요 증가' }, { name: '데이터 분석가', reason: '리스크 분석 수요 증가' }, { name: 'PM', reason: '신규 서비스 기획 수요' }],
     keywords: ['핀테크', '결제', '대출'],
+};
+
+const compareContent: CompareReport = {
+    title: '핀테크 PM vs 데이터 분석가', summary: '두 직무는 요구 역량과 채용 수요에서 차이가 있습니다.',
+    items: [
+        {
+            keyword: '핀테크 PM', overview: '핀테크 서비스의 기획·운영을 총괄합니다.',
+            mainTasks: ['로드맵 수립', '유관 부서 협업', '지표 분석'], keySkills: ['SQL', '커뮤니케이션'],
+            salary: { entry: '3,000만 원', mid: '4,500만 원' }, demandLevel: 'high', pros: ['성장성 높음'], cons: ['경쟁 심함'],
+        },
+        {
+            keyword: '데이터 분석가', overview: '데이터를 기반으로 비즈니스 인사이트를 도출합니다.',
+            mainTasks: ['데이터 수집', '통계 분석', '리포트 작성'], keySkills: ['Python', 'SQL'],
+            salary: { entry: '3,200만 원', mid: '4,800만 원' }, demandLevel: 'medium', pros: ['수요 꾸준함'], cons: ['도메인 지식 필요'],
+        },
+    ],
+    comparison: {
+        criteria: [
+            { name: '진입 난이도', values: ['중간', '다소 높음'] },
+            { name: '연봉', values: ['3,000~4,500만 원', '3,200~4,800만 원'] },
+            { name: '채용 수요', values: ['높음', '보통'] },
+        ],
+        recommendation: '서비스 기획에 관심 있다면 핀테크 PM, 데이터 중심 업무를 원한다면 데이터 분석가를 추천합니다.',
+        fitBy: [{ profile: '경력 전환자', keyword: '데이터 분석가', reason: '통계 기초만 있으면 진입이 상대적으로 쉽습니다.' }],
+    },
+    relatedJobs: ['프로덕트 매니저'],
 };
 
 function makeReport(content: JobReport | IndustryReport, overrides: Partial<PublicReport> = {}): PublicReport {
@@ -62,6 +88,13 @@ function makeReport(content: JobReport | IndustryReport, overrides: Partial<Publ
 
 const jobReport = makeReport(jobContent);
 const industryReport = makeReport(industryContent);
+const compareReport: PublicReport = {
+    ...jobReport,
+    keyword: '핀테크 PM, 데이터 분석가',
+    content: compareContent,
+    kind: 'compare',
+    keywords: ['핀테크 PM', '데이터 분석가'],
+};
 
 describe('renderReportPdf', () => {
     it('직무 리포트를 %PDF-로 시작하는 Buffer로 렌더링한다', async () => {
@@ -92,11 +125,20 @@ describe('renderReportPdf', () => {
         const buf = await renderReportPdf(jobReport);
         expect(buf.toString('latin1')).toContain('NotoSansKR');
     });
+
+    it('비교 리포트(kind=compare)를 %PDF-로 시작하는 Buffer로 렌더링한다', async () => {
+        const buf = await renderReportPdf(compareReport);
+        expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
+    });
 });
 
 describe('pdfFileName', () => {
     it('J.AI_유형_키워드_날짜.pdf 형식으로 만든다', () => {
         expect(pdfFileName(jobReport)).toBe('J.AI_직무분석_핀테크PM_2026-11-12.pdf');
+    });
+
+    it('비교 리포트는 J.AI_유형비교_첫키워드_외N_날짜.pdf 형식으로 만든다', () => {
+        expect(pdfFileName(compareReport)).toBe('J.AI_직무비교_핀테크PM_외1_2026-11-12.pdf');
     });
 
     it('.pdf로 끝난다', () => {

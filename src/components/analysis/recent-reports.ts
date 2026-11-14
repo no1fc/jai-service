@@ -2,7 +2,7 @@
  * 비로그인 사용자의 "최근 본 분석" 보관 — localStorage. 시크릿 모드 등에서 접근이
  * 예외를 던질 수 있으므로 모든 접근을 try/catch로 감싼다(`/analysis/library` Task 9에서도 재사용).
  */
-import type { AnalysisRequest } from '@/lib/analysis/schema';
+import type { AnalysisRequest, ReportKind } from '@/lib/analysis/schema';
 
 export const RECENT_KEY = 'jai.analysis.recent';
 export const MAX_RECENT = 20;
@@ -12,6 +12,8 @@ export interface RecentItem {
     type: AnalysisRequest['type'];
     keyword: string;
     createdAt: string;
+    /** 이 변경 전에 저장된 로컬 항목에는 없을 수 있어 선택값이다. */
+    kind?: ReportKind;
 }
 
 function safeStorage(): Storage | null {

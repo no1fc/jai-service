@@ -59,6 +59,8 @@ export interface ReportListItem {
     scope: string;
     created_at: Date;
     request_count: number;
+    /** 관리자 목록(listReports)에는 아직 select하지 않아 undefined일 수 있다(보관함 "비교" 배지만 필요, Task 19). */
+    kind?: ReportKind;
 }
 
 export interface DashboardTopRow { type: string; keyword: string; cnt: number }
@@ -96,7 +98,7 @@ const LIBRARY_MERGE_SQL = `MERGE analysis_library AS t USING (SELECT @userId AS 
 const REMOVE_LIBRARY_SQL = `DELETE l FROM analysis_library l JOIN analysis_reports r ON r.id = l.report_id
     WHERE l.user_id = @userId AND r.public_id = @publicId`;
 
-const LIST_LIBRARY_SQL = `SELECT r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at,
+const LIST_LIBRARY_SQL = `SELECT r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at, r.kind,
     (SELECT COUNT(*) FROM analysis_requests q WHERE q.report_id = r.id) AS request_count
     FROM analysis_library l JOIN analysis_reports r ON r.id = l.report_id WHERE l.user_id = @userId ORDER BY l.created_at DESC`;
 

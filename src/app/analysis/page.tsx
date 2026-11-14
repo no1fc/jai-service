@@ -18,7 +18,7 @@ function AnalysisPageContent() {
     const defaultKeyword = keywordOverride ?? searchParams.get('keyword') ?? '';
 
     function handleCreated(report: PublicReport) {
-        pushRecent({ publicId: report.publicId, type: report.type, keyword: report.keyword, createdAt: report.createdAt });
+        pushRecent({ publicId: report.publicId, type: report.type, keyword: report.keyword, createdAt: report.createdAt, kind: report.kind });
         router.push(`/analysis/r/${report.publicId}`);
     }
 

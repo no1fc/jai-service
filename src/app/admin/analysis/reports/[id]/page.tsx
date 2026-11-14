@@ -39,8 +39,10 @@ export default function AdminAnalysisReportDetailPage({ params }: { params: Prom
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: data.report.type, keyword: data.report.keyword, scope: data.report.scope,
+                    type: data.report.type, scope: data.report.scope,
                     includeCompetitors: data.includeCompetitors, includeTrends: data.includeTrends, force: true,
+                    // 비교 리포트(kind==='compare')는 keywords 배열로 보내야 비교 생성 경로를 탄다(설계서 5.2).
+                    ...(data.report.kind === 'compare' ? { keywords: data.report.keywords } : { keyword: data.report.keyword }),
                 }),
             });
             const d = await res.json();

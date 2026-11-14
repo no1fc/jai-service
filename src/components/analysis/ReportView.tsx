@@ -2,9 +2,10 @@
  * 분석 리포트 결과 렌더링 — 순수 컴포넌트(서버·클라이언트 공용, 상태 없음).
  * `/analysis/r/[publicId]`(참여자)와 `/admin/analysis/reports/[id]`(상담사, Task 8)에서 재사용한다.
  */
-import type { ReactNode } from 'react';
 import Link from 'next/link';
 import AiGeneratedBadge from '@/components/AiGeneratedBadge';
+import CompareView from './CompareView';
+import { Badge, card, chip, daysAgoLabel, Section, work24UnavailableReason } from './report-shared';
 import { dataBadgeLabels } from '@/lib/analysis/labels';
 import {
     ANALYSIS_TYPE_LABEL,
@@ -18,32 +19,6 @@ interface ReportViewProps {
 }
 
 const DEMAND_LABEL = { high: '높음', medium: '보통', low: '낮음' } as const;
-const card = 'rounded-[var(--radius-card)] border border-border bg-bg-elevated p-5';
-const chip = 'h-9 inline-flex items-center px-3 rounded-full border border-border text-sm text-accent hover:bg-accent-soft';
-
-function daysAgoLabel(createdAt: string): string {
-    const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000);
-    return days <= 0 ? '오늘 생성' : `${days}일 전 생성`;
-}
-
-/** 고용24가 반영되지 않았음을 중립적으로 알린다(구체적 사유는 밝히지 않음). */
-function work24UnavailableReason(report: PublicReport): string | null {
-    if (report.meta.dataUsed.includes('work24')) return null;
-    return '이 리포트에는 고용24 채용 데이터가 반영되지 않았습니다.';
-}
-
-function Badge({ children }: { children: ReactNode }) {
-    return <span className="inline-flex items-center h-6 px-2 rounded-full bg-accent-soft text-accent text-xs font-semibold">{children}</span>;
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-    return (
-        <section className={`${card} space-y-3`}>
-            <h2 className="font-bold text-text">{title}</h2>
-            {children}
-        </section>
-    );
-}
 
 function Work24Table({ data }: { data: Work24Summary }) {
     return (
@@ -177,6 +152,8 @@ function IndustrySections({ content, work24 }: { content: IndustryReport; work24
 }
 
 export default function ReportView({ report, pdfHref }: ReportViewProps) {
+    if (report.kind === 'compare') return <CompareView report={report} pdfHref={pdfHref} />;
+
     const { content, meta } = report;
     const isJob = 'roadmap' in content;
     const work24Reason = work24UnavailableReason(report);

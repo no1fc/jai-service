@@ -23,6 +23,7 @@ export async function GET(request: Request) {
                 type: item.type,
                 keyword: item.keyword,
                 createdAt: item.created_at,
+                kind: item.kind,
             })),
         });
     } catch (error) {
