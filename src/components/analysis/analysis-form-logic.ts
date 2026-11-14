@@ -30,3 +30,16 @@ export function buildAnalysisRequestBody(params: AnalysisRequestBodyParams): Rec
     const kwField = keywords.length >= 2 ? { keywords } : { keyword: keyword.trim() };
     return force ? { ...base, ...kwField, force: true } : { ...base, ...kwField };
 }
+
+/** 쉼표(반각·전각)로 구분된 입력의 마지막 토큰(trim)만 반환한다 — 추천 칩 질의어 판단용. */
+export function lastToken(raw: string): string {
+    const parts = raw.split(/[,，]/);
+    return parts[parts.length - 1].trim();
+}
+
+/** 추천 칩 클릭 시 마지막 토큰만 picked 값으로 치환하고 앞 토큰은 그대로 유지한다. */
+export function replaceLastToken(raw: string, picked: string): string {
+    const parts = raw.split(/[,，]/);
+    parts[parts.length - 1] = picked;
+    return parts.map(p => p.trim()).join(', ');
+}

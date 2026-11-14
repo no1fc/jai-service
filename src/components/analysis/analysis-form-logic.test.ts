@@ -1,6 +1,6 @@
-/** analysis-form-logic.ts 테스트 — 버튼 문구·요청 바디 분기(키워드 2개 이상 = 비교). */
+/** analysis-form-logic.ts 테스트 — 버튼 문구·요청 바디 분기(키워드 2개 이상 = 비교)·추천 칩 토큰 치환. */
 import { describe, expect, it } from 'vitest';
-import { buildAnalysisRequestBody, compareButtonLabel } from './analysis-form-logic';
+import { buildAnalysisRequestBody, compareButtonLabel, lastToken, replaceLastToken } from './analysis-form-logic';
 
 describe('compareButtonLabel', () => {
     it('키워드가 1개면 기본 문구를 반환한다', () => {
@@ -42,5 +42,29 @@ describe('buildAnalysisRequestBody', () => {
     it('force가 없으면 force 필드를 넣지 않는다', () => {
         const body = buildAnalysisRequestBody({ ...common, keyword: '핀테크 PM' });
         expect(body).not.toHaveProperty('force');
+    });
+});
+
+describe('lastToken', () => {
+    it('쉼표가 없으면 전체 문자열(trim)을 반환한다', () => {
+        expect(lastToken('핀테')).toBe('핀테');
+    });
+    it('쉼표로 구분된 마지막 토큰(trim)만 반환한다', () => {
+        expect(lastToken('데이터 분석가, 웹')).toBe('웹');
+    });
+    it('마지막이 쉼표면 빈 문자열을 반환한다', () => {
+        expect(lastToken('데이터 분석가, ')).toBe('');
+    });
+});
+
+describe('replaceLastToken', () => {
+    it('토큰이 1개면 전체를 추천 값으로 치환한다', () => {
+        expect(replaceLastToken('핀테', '핀테크 PM')).toBe('핀테크 PM');
+    });
+    it('쉼표로 구분된 마지막 토큰만 추천 값으로 치환하고 앞 토큰은 유지한다', () => {
+        expect(replaceLastToken('데이터 분석가, 웹', '웹 개발자')).toBe('데이터 분석가, 웹 개발자');
+    });
+    it('마지막이 쉼표(뒤 토큰 없음)여도 추천 값을 덧붙인다', () => {
+        expect(replaceLastToken('데이터 분석가, ', '웹 개발자')).toBe('데이터 분석가, 웹 개발자');
     });
 });

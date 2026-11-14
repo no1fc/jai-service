@@ -7,7 +7,9 @@ import { useState } from 'react';
 import CrossBorderNotice from '@/components/privacy/CrossBorderNotice';
 import AnalysisOptions from './AnalysisOptions';
 import KeywordChips from './KeywordChips';
-import { buildAnalysisRequestBody, compareButtonLabel } from './analysis-form-logic';
+import SuggestChips from './SuggestChips';
+import useSuggest from './use-suggest';
+import { buildAnalysisRequestBody, compareButtonLabel, replaceLastToken } from './analysis-form-logic';
 import { KEYWORDS_INPUT_MAX, KEYWORDS_MAX, parseKeywords } from '@/lib/analysis/keywords';
 import {
     ANALYSIS_SCOPES, ANALYSIS_SCOPE_LABEL, ANALYSIS_TYPES, ANALYSIS_TYPE_LABEL, KEYWORD_MIN,
@@ -37,6 +39,7 @@ export default function AnalysisForm({ defaultType = 'job', defaultKeyword = '',
 
     const keywordCount = parseKeywords(keyword).length;
     const disabled = loading || (keywordCount <= 1 ? keyword.trim().length < KEYWORD_MIN : keywordCount > KEYWORDS_MAX);
+    const { suggestions } = useSuggest(type, keyword);
 
     async function submit() {
         setLoading(true);
@@ -81,6 +84,7 @@ export default function AnalysisForm({ defaultType = 'job', defaultKeyword = '',
                     maxLength={KEYWORDS_INPUT_MAX} placeholder="예: 핀테크 PM (쉼표로 최대 3개 비교)" className={`${field} mt-1`} />
                 <span className="text-xs text-text-muted">{keyword.length}/{KEYWORDS_INPUT_MAX}</span>
                 <KeywordChips keywords={parseKeywords(keyword)} />
+                <SuggestChips suggestions={suggestions} onPick={picked => setKeyword(k => replaceLastToken(k, picked).slice(0, KEYWORDS_INPUT_MAX))} />
             </label>
 
             <label className="block">

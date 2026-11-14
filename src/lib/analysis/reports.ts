@@ -86,6 +86,10 @@ export interface DashboardStats {
 
 export const FRESH_REPORT_SQL = 'SELECT TOP 1 * FROM analysis_reports WHERE cache_key = @cacheKey AND expires_at > SYSUTCDATETIME() ORDER BY created_at DESC';
 
+const FIND_JOB_BY_PREFIX_SQL = `SELECT TOP (@limit) keyword, content FROM analysis_reports
+    WHERE type = 'job' AND kind = 'single' AND keyword_norm LIKE @prefix + '%' ESCAPE '\\'
+    ORDER BY created_at DESC`;
+
 const INSERT_REPORT_SQL = `INSERT INTO analysis_reports (type, keyword, keyword_norm, scope, include_competitors, include_trends, kind, cache_key, content, meta, model_name, input_tokens, output_tokens, created_at, expires_at)
     OUTPUT INSERTED.* VALUES (@type, @keyword, @keywordNorm, @scope, @comp, @trends, @kind, @cacheKey, @content, @meta, @model, @inTok, @outTok, SYSUTCDATETIME(), DATEADD(day, @ttl, SYSUTCDATETIME()))`;
 
@@ -128,6 +132,48 @@ export async function findFreshReport(cacheKey: string): Promise<StoredReport | 
     const pool = await getPool();
     const r = await pool.request().input('cacheKey', sql.VarChar(64), cacheKey).query(FRESH_REPORT_SQL);
     return (r.recordset[0] as StoredReport | undefined) ?? null;
+}
+
+/**
+ * LIKE 패턴의 와일드카드(\, %, _, [)를 이스케이프한다 — 사용자 입력을 LIKE 접두 검색에 안전하게 쓰기 위함.
+ * normalizeKeyword가 이미 %, _, [ 를 허용 문자셋에서 제외하지만, LIKE 사용 지점에서 이중으로 방어한다.
+ */
+export function escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_[]/g, (ch) => `\\${ch}`);
+}
+
+/** keyword를 그대로 relatedJobs 배열로 들고 있는, suggest.ts 입력용 리포트 요약. */
+export interface JobReportSuggestSource {
+    keyword: string;
+    relatedJobs: string[];
+}
+
+/** content JSON에서 relatedJobs(문자열 배열)만 뽑아낸다. 파싱 실패·형식 불일치는 빈 배열로 건너뛴다. */
+function parseRelatedJobs(content: string): string[] {
+    try {
+        const parsed = JSON.parse(content) as { relatedJobs?: unknown };
+        if (!Array.isArray(parsed.relatedJobs)) return [];
+        return parsed.relatedJobs.filter((v): v is string => typeof v === 'string');
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * 입력 중 유사 직무 추천(설계서 6장 B-3)용 — 접두사로 시작하는 단일 직무 리포트를 최신순으로 조회한다.
+ * keyword_norm LIKE 검색은 정규화·이스케이프한 접두사만 파라미터로 바인딩한다(LIKE 인젝션 방지).
+ */
+export async function findJobReportsByPrefix(prefix: string, limit = 20): Promise<JobReportSuggestSource[]> {
+    const pool = await getPool();
+    const escapedPrefix = escapeLikePattern(normalizeKeyword(prefix));
+    const r = await pool.request()
+        .input('prefix', sql.NVarChar(160), escapedPrefix)
+        .input('limit', sql.Int, limit)
+        .query(FIND_JOB_BY_PREFIX_SQL);
+    return (r.recordset as Array<{ keyword: string; content: string }>).map((row) => ({
+        keyword: row.keyword,
+        relatedJobs: parseRelatedJobs(row.content),
+    }));
 }
 
 export async function insertReport(input: InsertReportInput): Promise<StoredReport> {

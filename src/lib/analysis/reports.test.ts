@@ -6,7 +6,7 @@ import { getPool } from '@/lib/db';
 import { normalizeKeyword } from './keywords';
 import {
     DASHBOARD_TOP_SQL, FRESH_REPORT_SQL,
-    addToLibrary, countGenerationsToday, findFreshReport, getDashboard, getReportByPublicId, getReportById,
+    addToLibrary, countGenerationsToday, escapeLikePattern, findFreshReport, findJobReportsByPrefix, getDashboard, getReportByPublicId, getReportById,
     insertReport, listLibrary, listReports, recordRequest, removeFromLibrary, toPublicReport,
     type StoredReport,
 } from './reports';
@@ -284,6 +284,53 @@ describe('listReports', () => {
         const { pool } = makeFakePool([[]]);
         vi.mocked(getPool).mockResolvedValue(pool);
         await expect(listReports({ q: 'a'.repeat(50) })).resolves.toEqual([]);
+    });
+});
+
+describe('escapeLikePattern', () => {
+    it('LIKE 와일드카드(%, _, [)와 이스케이프 문자(\\) 앞에 백슬래시를 붙인다(LIKE 인젝션 방지)', () => {
+        expect(escapeLikePattern('a%b_c[d\\e')).toBe('a\\%b\\_c\\[d\\\\e');
+    });
+    it('일반 문자는 그대로 둔다', () => {
+        expect(escapeLikePattern('핀테크 pm')).toBe('핀테크 pm');
+    });
+});
+
+describe('findJobReportsByPrefix', () => {
+    it("type='job' AND kind='single' 조건과 keyword_norm LIKE 접두 조건을 포함한다", async () => {
+        const { pool, log } = makeFakePool([[]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await findJobReportsByPrefix('핀테');
+        expect(log[0].sql).toContain("type = 'job'");
+        expect(log[0].sql).toContain("kind = 'single'");
+        expect(log[0].sql).toContain('keyword_norm LIKE @prefix');
+        expect(log[0].sql).toContain("ESCAPE '\\'");
+    });
+    it('normalizeKeyword로 정규화한 뒤 이스케이프한 접두사를 NVarChar(160)으로 바인딩한다', async () => {
+        const { pool, log } = makeFakePool([[]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await findJobReportsByPrefix('핀테크 PM');
+        const prefixInput = log[0].inputs.find((i) => i.name === 'prefix');
+        expect(prefixInput).toEqual({ name: 'prefix', type: sql.NVarChar(160), value: normalizeKeyword('핀테크 PM') });
+    });
+    it('limit을 바인딩하고 기본값은 20이다', async () => {
+        const { pool, log } = makeFakePool([[]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await findJobReportsByPrefix('핀테');
+        expect(log[0].inputs).toEqual(expect.arrayContaining([{ name: 'limit', type: sql.Int, value: 20 }]));
+    });
+    it('content JSON에서 relatedJobs를 파싱하고, 깨진 JSON은 빈 배열로 건너뛴다', async () => {
+        const rows = [
+            { keyword: '핀테크 PM', content: JSON.stringify({ relatedJobs: ['프로덕트 매니저', 1, '백엔드 개발자'] }) },
+            { keyword: '깨진 리포트', content: '{broken' },
+        ];
+        const { pool } = makeFakePool([rows]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        const result = await findJobReportsByPrefix('핀테');
+        expect(result).toEqual([
+            { keyword: '핀테크 PM', relatedJobs: ['프로덕트 매니저', '백엔드 개발자'] },
+            { keyword: '깨진 리포트', relatedJobs: [] },
+        ]);
     });
 });
 
