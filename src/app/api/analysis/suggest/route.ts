@@ -7,13 +7,13 @@ import { z } from 'zod';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
-import { ANALYSIS_TYPES, KEYWORD_MAX, KEYWORD_MIN } from '@/lib/analysis/schema';
+import { ANALYSIS_TYPES, KEYWORD_MAX, KEYWORD_MIN, KEYWORD_RE } from '@/lib/analysis/schema';
 import { JOB_SEEDS } from '@/lib/analysis/job-seeds';
 import { mergeSuggestions } from '@/lib/analysis/suggest';
+import { findJobReportsByPrefix } from '@/lib/analysis/reports';
 
 export const dynamic = 'force-dynamic';
 
-const KEYWORD_RE = /^[\p{Script=Hangul}\p{Script=Latin}0-9 /+#.&()-]+$/u;
 const querySchema = z.object({
     type: z.enum(ANALYSIS_TYPES),
     q: z.string().trim().min(KEYWORD_MIN).max(KEYWORD_MAX).regex(KEYWORD_RE),
@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
     if (type !== 'job') return apiSuccess({ suggestions: [] });
 
     try {
-        const { findJobReportsByPrefix } = await import('@/lib/analysis/reports');
         const reports = await findJobReportsByPrefix(q);
         return apiSuccess({ suggestions: mergeSuggestions(q, reports, JOB_SEEDS) });
     } catch (error) {

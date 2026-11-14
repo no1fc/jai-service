@@ -22,7 +22,7 @@ export default function useSuggest(type: AnalysisRequest['type'], keyword: strin
         const controller = new AbortController();
         const timer = setTimeout(() => {
             fetch(`/api/analysis/suggest?type=job&q=${encodeURIComponent(query)}`, { signal: controller.signal })
-                .then(res => res.json())
+                .then(res => (res.ok ? res.json() : null))
                 .then(data => setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []))
                 .catch(() => { /* 취소(abort)·네트워크 오류는 조용히 무시 — 추천은 보조 기능이다 */ });
         }, DEBOUNCE_MS);

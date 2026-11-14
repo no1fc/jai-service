@@ -12,7 +12,7 @@ export const KEYWORD_MAX = 50;
 /** 캐시 미스(실제 생성)에만 적용하는 일일 한도 */
 export const DAILY_LIMITS = { anon: 3, user: 10, admin: 30, global: 200 } as const;
 
-const KEYWORD_RE = /^[\p{Script=Hangul}\p{Script=Latin}0-9 /+#.&()-]+$/u;
+export const KEYWORD_RE = /^[\p{Script=Hangul}\p{Script=Latin}0-9 /+#.&()-]+$/u;
 const keywordField = z.string().trim().min(KEYWORD_MIN, '키워드는 2자 이상 입력해 주세요.').max(KEYWORD_MAX, '키워드는 50자 이내로 입력해 주세요.')
     .regex(KEYWORD_RE, '한글·영문·숫자와 일부 기호만 입력할 수 있습니다.');
 
