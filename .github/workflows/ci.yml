@@ -1,0 +1,27 @@
+# PR·master 푸시마다 테스트와 빌드를 검증한다. 빌드는 .env 없이도 통과한다(외부 키는 DB system_settings에서 읽음).
+# ponytail: lint는 master에 기존 오류 48건이 있어 제외. 오류를 정리하면 `npm run lint` 단계를 추가한다.
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # ponytail: Windows에서 만든 lockfile에 Linux 전용 선택 의존성(@rolldown wasm 바인딩의 @emnapi)이 빠져 npm ci가 거부한다. Linux에서 lockfile을 다시 만들면 npm ci로 되돌린다.
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
