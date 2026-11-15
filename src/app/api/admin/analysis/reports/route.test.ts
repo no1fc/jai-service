@@ -50,7 +50,7 @@ describe('GET /api/admin/analysis/reports', () => {
         vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
         const createdAt = new Date('2026-01-01T00:00:00.000Z');
         vi.mocked(listReports).mockResolvedValue([
-            { id: 1, public_id: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', created_at: createdAt, request_count: 3 },
+            { id: 1, public_id: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', created_at: createdAt, request_count: 3, kind: 'single' },
         ]);
         const res = await GET(getRequest('?type=job&q=PM'));
         expect(res.status).toBe(200);
@@ -58,8 +58,19 @@ describe('GET /api/admin/analysis/reports', () => {
         const json = await res.json();
         expect(json).toEqual({
             success: true,
-            reports: [{ id: 1, publicId: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', createdAt: createdAt.toISOString(), requestCount: 3 }],
+            reports: [{ id: 1, publicId: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', createdAt: createdAt.toISOString(), requestCount: 3, kind: 'single' }],
         });
+    });
+
+    it('비교 리포트(kind=compare)도 kind 필드를 그대로 전달한다("비교" 배지 판단용)', async () => {
+        vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
+        const createdAt = new Date('2026-01-01T00:00:00.000Z');
+        vi.mocked(listReports).mockResolvedValue([
+            { id: 2, public_id: 'pub-2', type: 'job', keyword: '핀테크 PM, 데이터 분석가', scope: 'kr', created_at: createdAt, request_count: 1, kind: 'compare' },
+        ]);
+        const res = await GET(getRequest());
+        const json = await res.json();
+        expect(json.reports[0].kind).toBe('compare');
     });
 });
 

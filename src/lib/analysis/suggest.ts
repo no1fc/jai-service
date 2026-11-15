@@ -3,6 +3,7 @@
  * 리포트 keyword(접두 일치, 호출자가 findJobReportsByPrefix로 미리 필터) → relatedJobs → 시드(부분 일치) 순서로 합친다.
  */
 import { normalizeKeyword } from './keywords';
+import { isValidReportKeyword } from './schema';
 
 export const SUGGEST_MAX = 6;
 
@@ -30,6 +31,7 @@ export function mergeSuggestions(
 
     function add(candidate: string): void {
         if (result.length >= SUGGEST_MAX) return;
+        if (!isValidReportKeyword(candidate)) return;
         const norm = normalizeKeyword(candidate);
         if (!norm || seen.has(norm)) return;
         seen.add(norm);

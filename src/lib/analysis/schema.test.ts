@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analysisRequestSchema, compareReportSchema, compareRequestSchema, jobReportSchema, industryReportSchema, reportContentSchema } from './schema';
+import { analysisRequestSchema, compareReportSchema, compareRequestSchema, isValidReportKeyword, jobReportSchema, industryReportSchema, reportContentSchema } from './schema';
 
 const req = { type: 'job', keyword: '핀테크 PM', scope: 'kr', includeCompetitors: true, includeTrends: false };
 
@@ -66,6 +66,30 @@ describe('compareRequestSchema', () => {
     });
     it('51자 항목이 있으면 거부한다', () => {
         expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM', 'a'.repeat(51)] }).success).toBe(false);
+    });
+    it('정규화 기준 중복 키워드가 있으면 거부한다(대소문자만 다른 경우 포함)', () => {
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM', '핀테크 pm'] }).success).toBe(false);
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM', '데이터 분석가', '핀테크 pm'] }).success).toBe(false);
+    });
+});
+
+describe('isValidReportKeyword', () => {
+    it('정상 키워드(한글·공백)는 true를 반환한다', () => {
+        expect(isValidReportKeyword('핀테크 PM')).toBe(true);
+    });
+    it('1자(최소 2자 미만)는 false를 반환한다', () => {
+        expect(isValidReportKeyword('A')).toBe(false);
+    });
+    it('허용되지 않는 문자(이모지·쉼표·따옴표 등)가 섞이면 false를 반환한다', () => {
+        expect(isValidReportKeyword('핀테크 PM 🚀')).toBe(false);
+        expect(isValidReportKeyword('핀테크, PM')).toBe(false);
+        expect(isValidReportKeyword('"핀테크 PM"')).toBe(false);
+    });
+    it('50자를 넘으면 false를 반환한다', () => {
+        expect(isValidReportKeyword('가'.repeat(51))).toBe(false);
+    });
+    it('앞뒤 공백은 trim 후 검사한다', () => {
+        expect(isValidReportKeyword('  핀테크 PM  ')).toBe(true);
     });
 });
 

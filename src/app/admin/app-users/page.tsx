@@ -113,9 +113,9 @@ export default function AdminAppUsersPage() {
                     </p>
                     {result.isLocked && <p className="text-sm text-[var(--color-danger)]">로그인 실패 누적으로 잠겨 있습니다.</p>}
 
-                    {result.provider !== 'local' ? (
-                        <p className="text-sm text-[var(--color-text-muted)]">이메일 계정이 아니라 비밀번호를 초기화할 수 없습니다.</p>
-                    ) : tempPassword ? (
+                    {/* /api/admin/app-users GET은 findLocalUserByEmail(provider='local'만 조회)로 찾으므로
+                        result.provider는 항상 'local'이다 — provider 분기는 도달 불가라 두지 않는다. */}
+                    {tempPassword ? (
                         <div className="space-y-2 rounded-[4px] border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-3">
                             <p className="text-sm text-[var(--color-text-secondary)]">임시 비밀번호(1회만 표시됩니다):</p>
                             <div className="flex items-center gap-2">

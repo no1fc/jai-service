@@ -9,7 +9,9 @@ BEGIN
         password_updated_at DATETIME2 NULL;
 END;
 GO
--- 휴대폰 인증 제거(D-7)
+-- 휴대폰 인증 제거(D-7). analysis_requests엔 app_users로의 FK가 없어 CASCADE로 정리되지 않으므로
+-- DELETE_USER_SQL(users.ts)과 같은 방침으로 삭제 전에 참조를 먼저 끊는다.
+UPDATE analysis_requests SET user_id = NULL WHERE user_id IN (SELECT id FROM app_users WHERE provider = 'phone');
 DELETE FROM app_users WHERE provider = 'phone';
 DROP TABLE IF EXISTS phone_verifications;
 DELETE FROM system_settings WHERE [key] IN ('sens_access_key', 'sens_secret_key', 'sens_service_id', 'sens_sender');

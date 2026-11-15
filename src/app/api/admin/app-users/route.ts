@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
         const parsed = emailSchema.safeParse(request.nextUrl.searchParams.get('email') ?? '');
         if (!parsed.success) return apiError(formatZodError(parsed.error), 400);
 
+        // findLocalUserByEmail은 provider='local' 조건으로만 조회하므로 found.provider는 항상 'local'이다
+        // (관리자 화면은 이 전제로 provider 분기를 두지 않는다).
         const found = await findLocalUserByEmail(parsed.data);
         // 검색어(이메일)는 자유 텍스트 로그 필드에 남기지 않는다 — targetId(숫자)만 기록한다.
         void logAdminAccess({ adminUsername: auth.id, action: 'app_user_search', targetType: 'app_user', targetId: found?.id ?? null, ip: getClientIp(request) });

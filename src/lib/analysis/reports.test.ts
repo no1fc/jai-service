@@ -266,6 +266,12 @@ describe('listReports', () => {
         expect(log[0].sql).not.toContain('WHERE r.');
         expect(log[0].inputs).toEqual([]);
     });
+    it('r.kind를 select해 관리자 목록에서도 비교 배지를 판단할 수 있다', async () => {
+        const { pool, log } = makeFakePool([[]]);
+        vi.mocked(getPool).mockResolvedValue(pool);
+        await listReports();
+        expect(log[0].sql).toContain('r.kind');
+    });
     it('type·q 필터가 바인딩되고 LIKE 패턴으로 감싼다', async () => {
         const { pool, log } = makeFakePool([[]]);
         vi.mocked(getPool).mockResolvedValue(pool);
@@ -318,6 +324,10 @@ describe('findJobReportsByPrefix', () => {
         vi.mocked(getPool).mockResolvedValue(pool);
         await findJobReportsByPrefix('핀테');
         expect(log[0].inputs).toEqual(expect.arrayContaining([{ name: 'limit', type: sql.Int, value: 20 }]));
+    });
+    it('정규화 결과가 빈 문자열이면(허용 외 문자만 입력) DB를 조회하지 않고 빈 배열을 반환한다', async () => {
+        expect(await findJobReportsByPrefix('🚀!!!')).toEqual([]);
+        expect(getPool).not.toHaveBeenCalled();
     });
     it('content JSON에서 relatedJobs를 파싱하고, 깨진 JSON은 빈 배열로 건너뛴다', async () => {
         const rows = [

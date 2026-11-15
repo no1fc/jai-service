@@ -2,7 +2,7 @@
  * 직무/산업 분석 요청·리포트 스키마 (클라이언트/서버 공용, 런타임 의존성 zod만)
  */
 import { z } from 'zod';
-import { KEYWORDS_MAX } from './keywords';
+import { KEYWORDS_MAX, normalizeKeyword } from './keywords';
 
 export const ANALYSIS_TYPES = ['job', 'industry'] as const;
 export const ANALYSIS_SCOPES = ['kr', 'global'] as const;
@@ -16,6 +16,14 @@ export const KEYWORD_RE = /^[\p{Script=Hangul}\p{Script=Latin}0-9 /+#.&()-]+$/u;
 const keywordField = z.string().trim().min(KEYWORD_MIN, '키워드는 2자 이상 입력해 주세요.').max(KEYWORD_MAX, '키워드는 50자 이내로 입력해 주세요.')
     .regex(KEYWORD_RE, '한글·영문·숫자와 일부 기호만 입력할 수 있습니다.');
 
+/**
+ * keywordField 규칙(trim 후 길이·허용 문자)을 그대로 따르는지 검사한다 — 순수 함수, 클라이언트 안전.
+ * 관련 직무 칩·추천 칩이 보장된 400을 피하도록 미리 거르는 용도로 쓴다(재구현 대신 zod 스키마를 재사용).
+ */
+export function isValidReportKeyword(keyword: string): boolean {
+    return keywordField.safeParse(keyword).success;
+}
+
 export const analysisRequestSchema = z.object({
     type: z.enum(ANALYSIS_TYPES),
     keyword: keywordField,
@@ -25,9 +33,18 @@ export const analysisRequestSchema = z.object({
 });
 export type AnalysisRequest = z.infer<typeof analysisRequestSchema>;
 
-/** 비교 리포트 요청(설계서 5.2) — keyword 1개 대신 keywords 2~3개. */
+/** 비교 리포트 요청(설계서 5.2) — keyword 1개 대신 keywords 2~3개. normalizeKeyword 기준 중복은 거부한다(설계서 5.1). */
 export const compareRequestSchema = analysisRequestSchema.omit({ keyword: true }).extend({
     keywords: z.array(keywordField).min(2, '비교할 키워드를 2개 이상 입력해 주세요.').max(KEYWORDS_MAX, `키워드는 최대 ${KEYWORDS_MAX}개까지 비교할 수 있습니다.`),
+}).superRefine((data, ctx) => {
+    const seen = new Set<string>();
+    data.keywords.forEach((keyword, i) => {
+        const norm = normalizeKeyword(keyword);
+        if (seen.has(norm)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: '중복된 키워드는 비교할 수 없습니다.', path: ['keywords', i] });
+        }
+        seen.add(norm);
+    });
 });
 export type CompareRequest = z.infer<typeof compareRequestSchema>;
 

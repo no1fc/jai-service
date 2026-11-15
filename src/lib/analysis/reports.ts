@@ -120,7 +120,7 @@ const DASHBOARD_RECENT_SQL = `SELECT TOP 20 r.public_id, r.type, r.keyword, q.ac
     ORDER BY q.created_at DESC`;
 
 // ponytail: 목록은 TOP 500 고정, 검색은 LIKE. 리포트가 수천 건을 넘으면 페이지네이션 추가
-const LIST_SQL = (where: string) => `SELECT TOP 500 r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at,
+const LIST_SQL = (where: string) => `SELECT TOP 500 r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at, r.kind,
     (SELECT COUNT(*) FROM analysis_requests q WHERE q.report_id = r.id) AS request_count FROM analysis_reports r ${where} ORDER BY r.created_at DESC`;
 
 /** MSSQL 오류 번호 208("Invalid object name") — 테이블이 아직 생성되지 않은 경우. */
@@ -164,8 +164,10 @@ function parseRelatedJobs(content: string): string[] {
  * keyword_norm LIKE 검색은 정규화·이스케이프한 접두사만 파라미터로 바인딩한다(LIKE 인젝션 방지).
  */
 export async function findJobReportsByPrefix(prefix: string, limit = 20): Promise<JobReportSuggestSource[]> {
+    const normalizedPrefix = normalizeKeyword(prefix);
+    if (!normalizedPrefix) return [];
     const pool = await getPool();
-    const escapedPrefix = escapeLikePattern(normalizeKeyword(prefix));
+    const escapedPrefix = escapeLikePattern(normalizedPrefix);
     const r = await pool.request()
         .input('prefix', sql.NVarChar(160), escapedPrefix)
         .input('limit', sql.Int, limit)

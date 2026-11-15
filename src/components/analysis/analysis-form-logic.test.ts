@@ -1,6 +1,6 @@
 /** analysis-form-logic.ts 테스트 — 버튼 문구·요청 바디 분기(키워드 2개 이상 = 비교)·추천 칩 토큰 치환. */
 import { describe, expect, it } from 'vitest';
-import { buildAnalysisRequestBody, compareButtonLabel, isValidReportKeyword, lastToken, replaceLastToken } from './analysis-form-logic';
+import { buildAnalysisRequestBody, compareButtonLabel, isKeywordInputInvalid, isValidReportKeyword, lastToken, replaceLastToken } from './analysis-form-logic';
 
 describe('compareButtonLabel', () => {
     it('키워드가 1개면 기본 문구를 반환한다', () => {
@@ -42,6 +42,42 @@ describe('buildAnalysisRequestBody', () => {
     it('force가 없으면 force 필드를 넣지 않는다', () => {
         const body = buildAnalysisRequestBody({ ...common, keyword: '핀테크 PM' });
         expect(body).not.toHaveProperty('force');
+    });
+
+    it('단일 키워드에 후행 쉼표가 있으면 정리된 키워드(쉼표 제거)를 담는다', () => {
+        const body = buildAnalysisRequestBody({ ...common, keyword: '데이터 분석가,' });
+        expect(body).toEqual({ type: 'job', scope: 'kr', includeCompetitors: true, includeTrends: false, keyword: '데이터 분석가' });
+    });
+
+    it('중복 키워드만 있으면(정리 후 실질 1개) keyword 필드에 정리된 값을 담는다', () => {
+        const body = buildAnalysisRequestBody({ ...common, keyword: '개발자, 개발자' });
+        expect(body).toEqual({ type: 'job', scope: 'kr', includeCompetitors: true, includeTrends: false, keyword: '개발자' });
+    });
+
+    it('쉼표만 있어 유효 키워드가 0개면 원문(trim)을 그대로 담는다(버튼은 비활성이라 전송되지 않음)', () => {
+        const body = buildAnalysisRequestBody({ ...common, keyword: ',,' });
+        expect(body).toEqual({ type: 'job', scope: 'kr', includeCompetitors: true, includeTrends: false, keyword: ',,' });
+    });
+});
+
+describe('isKeywordInputInvalid', () => {
+    it('키워드가 0개(빈 입력·쉼표만)면 true를 반환한다', () => {
+        expect(isKeywordInputInvalid('')).toBe(true);
+        expect(isKeywordInputInvalid(',,')).toBe(true);
+    });
+    it('키워드가 1개면 최소 길이(KEYWORD_MIN) 미달 여부로 판단한다', () => {
+        expect(isKeywordInputInvalid('A')).toBe(true);
+        expect(isKeywordInputInvalid('핀테크 PM')).toBe(false);
+    });
+    it('후행 쉼표가 있어도 정리된 키워드 길이로 판단한다(원문 길이로 판단하지 않는다)', () => {
+        expect(isKeywordInputInvalid('데이터 분석가,')).toBe(false);
+    });
+    it('중복 키워드만 있으면(정리 후 1개) 정리된 키워드 길이로 판단한다', () => {
+        expect(isKeywordInputInvalid('개발자, 개발자')).toBe(false);
+    });
+    it('키워드가 2개 이상이면 KEYWORDS_MAX 초과 여부로 판단한다', () => {
+        expect(isKeywordInputInvalid('핀테크 PM, 데이터 분석가')).toBe(false);
+        expect(isKeywordInputInvalid('a, b, c, d')).toBe(true);
     });
 });
 

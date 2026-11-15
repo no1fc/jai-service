@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
             scope: row.scope,
             createdAt: row.created_at,
             requestCount: row.request_count,
+            kind: row.kind,
         }));
         return apiSuccess({ reports });
     } catch (error) {

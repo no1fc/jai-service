@@ -7,9 +7,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { pushRecent, toRecentItem } from './recent-reports';
-import { isValidReportKeyword } from './analysis-form-logic';
 import { chip, Section } from './report-shared';
-import type { AnalysisRequest, PublicReport } from '@/lib/analysis/schema';
+import { isValidReportKeyword, type AnalysisRequest, type PublicReport } from '@/lib/analysis/schema';
 
 interface RelatedJobChipsProps {
     jobs: string[];

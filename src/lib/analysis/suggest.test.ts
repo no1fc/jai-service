@@ -46,4 +46,14 @@ describe('mergeSuggestions', () => {
         const ai = Array.from({ length: 7 }, (_, i) => `AI직무${i}`);
         expect(mergeSuggestions('질의', [], [], ai)).toHaveLength(SUGGEST_MAX);
     });
+
+    it('KEYWORD_RE 규칙(허용 문자·길이)에 맞지 않는 후보는 제외한다(쉼표·따옴표·1자·이모지)', () => {
+        const result = mergeSuggestions(
+            '질의',
+            [{ keyword: '정상 직무', relatedJobs: ['관련, 직무', '"따옴표 직무"', 'A'] }],
+            ['시드 🚀'],
+            ['AI, 직무'],
+        );
+        expect(result).toEqual(['정상 직무']);
+    });
 });

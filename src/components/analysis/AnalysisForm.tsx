@@ -9,10 +9,10 @@ import AnalysisOptions from './AnalysisOptions';
 import KeywordChips from './KeywordChips';
 import SuggestChips from './SuggestChips';
 import useSuggest from './use-suggest';
-import { buildAnalysisRequestBody, compareButtonLabel, replaceLastToken } from './analysis-form-logic';
-import { KEYWORDS_INPUT_MAX, KEYWORDS_MAX, parseKeywords } from '@/lib/analysis/keywords';
+import { buildAnalysisRequestBody, compareButtonLabel, isKeywordInputInvalid, replaceLastToken } from './analysis-form-logic';
+import { KEYWORDS_INPUT_MAX, parseKeywords } from '@/lib/analysis/keywords';
 import {
-    ANALYSIS_SCOPES, ANALYSIS_SCOPE_LABEL, ANALYSIS_TYPES, ANALYSIS_TYPE_LABEL, KEYWORD_MIN,
+    ANALYSIS_SCOPES, ANALYSIS_SCOPE_LABEL, ANALYSIS_TYPES, ANALYSIS_TYPE_LABEL,
     type AnalysisRequest, type PublicReport,
 } from '@/lib/analysis/schema';
 
@@ -37,8 +37,7 @@ export default function AnalysisForm({ defaultType = 'job', defaultKeyword = '',
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const keywordCount = parseKeywords(keyword).length;
-    const disabled = loading || (keywordCount <= 1 ? keyword.trim().length < KEYWORD_MIN : keywordCount > KEYWORDS_MAX);
+    const disabled = loading || isKeywordInputInvalid(keyword);
     const { suggestions } = useSuggest(type, keyword);
 
     async function submit() {
@@ -78,14 +77,14 @@ export default function AnalysisForm({ defaultType = 'job', defaultKeyword = '',
                 ))}
             </div>
 
-            <label className="block">
-                <span className="font-medium text-text">키워드</span>
-                <input value={keyword} onChange={e => setKeyword(e.target.value.slice(0, KEYWORDS_INPUT_MAX))}
+            <div className="block">
+                <label htmlFor="analysis-keyword" className="font-medium text-text">키워드</label>
+                <input id="analysis-keyword" value={keyword} onChange={e => setKeyword(e.target.value.slice(0, KEYWORDS_INPUT_MAX))}
                     maxLength={KEYWORDS_INPUT_MAX} placeholder="예: 핀테크 PM (쉼표로 최대 3개 비교)" className={`${field} mt-1`} />
                 <span className="text-xs text-text-muted">{keyword.length}/{KEYWORDS_INPUT_MAX}</span>
                 <KeywordChips keywords={parseKeywords(keyword)} />
                 <SuggestChips suggestions={suggestions} onPick={picked => setKeyword(k => replaceLastToken(k, picked).slice(0, KEYWORDS_INPUT_MAX))} />
-            </label>
+            </div>
 
             <label className="block">
                 <span className="font-medium text-text">분석 범위</span>
