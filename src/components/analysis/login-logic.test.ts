@@ -1,12 +1,8 @@
 /**
- * login-logic.ts 테스트 — 동의 게이팅, 전화번호 형식, 단계 전이, 버튼 활성 조건,
- * 남은 시간 포맷, 콜백 에러 메시지 매핑.
+ * login-logic.ts 테스트 — 동의 게이팅, 콜백 에러 메시지 매핑.
  */
 import { describe, expect, test } from 'vitest';
-import {
-    canRequestCode, canVerifyCode, formatCountdown, isAgreed, isValidPhoneFormat,
-    nextPhoneStep, resolveCallbackErrorMessage, resolveExpiresInSec,
-} from './login-logic';
+import { canSubmitLogin, canSubmitPasswordChange, canSubmitSignup, isAgreed, passwordHint, resolveCallbackErrorMessage } from './login-logic';
 
 describe('isAgreed', () => {
     test('두 체크가 모두 true일 때만 true를 반환한다', () => {
@@ -14,86 +10,6 @@ describe('isAgreed', () => {
         expect(isAgreed(true, false)).toBe(false);
         expect(isAgreed(false, true)).toBe(false);
         expect(isAgreed(false, false)).toBe(false);
-    });
-});
-
-describe('isValidPhoneFormat', () => {
-    test('하이픈 유무와 무관하게 010~019 번호를 허용한다', () => {
-        expect(isValidPhoneFormat('010-1234-5678')).toBe(true);
-        expect(isValidPhoneFormat('01012345678')).toBe(true);
-    });
-
-    test('유선번호나 형식이 틀린 입력은 거부한다', () => {
-        expect(isValidPhoneFormat('02-1234-5678')).toBe(false);
-        expect(isValidPhoneFormat('010-12-5678')).toBe(false);
-        expect(isValidPhoneFormat('')).toBe(false);
-    });
-});
-
-describe('canRequestCode', () => {
-    test('동의 + 유효한 번호 형식 + 로딩 아님일 때만 true', () => {
-        expect(canRequestCode(true, '010-1234-5678', false)).toBe(true);
-    });
-
-    test('동의하지 않았으면 false', () => {
-        expect(canRequestCode(false, '010-1234-5678', false)).toBe(false);
-    });
-
-    test('번호 형식이 틀리면 false', () => {
-        expect(canRequestCode(true, '010-12', false)).toBe(false);
-    });
-
-    test('로딩 중이면 false', () => {
-        expect(canRequestCode(true, '010-1234-5678', true)).toBe(false);
-    });
-});
-
-describe('canVerifyCode', () => {
-    test('6자리 코드이고 로딩 중이 아니면 true', () => {
-        expect(canVerifyCode('123456', false)).toBe(true);
-    });
-
-    test('6자리가 아니면 false', () => {
-        expect(canVerifyCode('12345', false)).toBe(false);
-    });
-
-    test('로딩 중이면 false', () => {
-        expect(canVerifyCode('123456', true)).toBe(false);
-    });
-});
-
-describe('nextPhoneStep', () => {
-    test('발송 성공이면 code 단계로 전환한다', () => {
-        expect(nextPhoneStep('phone', true)).toBe('code');
-    });
-
-    test('발송 실패면 현재 단계를 유지한다', () => {
-        expect(nextPhoneStep('phone', false)).toBe('phone');
-        expect(nextPhoneStep('code', false)).toBe('code');
-    });
-});
-
-describe('resolveExpiresInSec', () => {
-    test('유효한 숫자면 그대로 쓴다', () => {
-        expect(resolveExpiresInSec(180)).toBe(180);
-    });
-
-    test('값이 없거나 숫자가 아니면 기본값(180)을 쓴다', () => {
-        expect(resolveExpiresInSec(undefined)).toBe(180);
-        expect(resolveExpiresInSec('abc')).toBe(180);
-        expect(resolveExpiresInSec(-5)).toBe(180);
-    });
-});
-
-describe('formatCountdown', () => {
-    test('분:초 형식으로 포맷하고 초는 두 자리로 맞춘다', () => {
-        expect(formatCountdown(65)).toBe('1:05');
-        expect(formatCountdown(180)).toBe('3:00');
-        expect(formatCountdown(5)).toBe('0:05');
-    });
-
-    test('음수는 0으로 바닥 처리한다', () => {
-        expect(formatCountdown(-1)).toBe('0:00');
     });
 });
 
@@ -114,5 +30,88 @@ describe('resolveCallbackErrorMessage', () => {
 
     test('알 수 없는 값은 kakao와 같은 기본 메시지를 반환한다', () => {
         expect(resolveCallbackErrorMessage('unknown-code')).toBe(resolveCallbackErrorMessage('kakao'));
+    });
+});
+
+describe('canSubmitLogin', () => {
+    test('이메일 형식이 올바르고 비밀번호가 입력되어 있으면 true', () => {
+        expect(canSubmitLogin('a@b.com', 'anything', false)).toBe(true);
+    });
+
+    test('로딩 중이면 false', () => {
+        expect(canSubmitLogin('a@b.com', 'anything', true)).toBe(false);
+    });
+
+    test('이메일 형식이 아니면 false', () => {
+        expect(canSubmitLogin('not-an-email', 'anything', false)).toBe(false);
+    });
+
+    test('비밀번호가 비어 있으면 false', () => {
+        expect(canSubmitLogin('a@b.com', '', false)).toBe(false);
+    });
+});
+
+describe('canSubmitSignup', () => {
+    const email = 'a@b.com';
+    const password = 'abc12345';
+
+    test('동의·이메일·비밀번호 형식·확인 일치가 모두 맞으면 true', () => {
+        expect(canSubmitSignup(true, email, password, password, false)).toBe(true);
+    });
+
+    test('동의하지 않으면 false', () => {
+        expect(canSubmitSignup(false, email, password, password, false)).toBe(false);
+    });
+
+    test('로딩 중이면 false', () => {
+        expect(canSubmitSignup(true, email, password, password, true)).toBe(false);
+    });
+
+    test('이메일 형식이 아니면 false', () => {
+        expect(canSubmitSignup(true, 'not-an-email', password, password, false)).toBe(false);
+    });
+
+    test('비밀번호 형식이 아니면(영문/숫자 미포함) false', () => {
+        expect(canSubmitSignup(true, email, 'onlyletters', password, false)).toBe(false);
+    });
+
+    test('비밀번호 확인이 다르면 false', () => {
+        expect(canSubmitSignup(true, email, password, 'different123', false)).toBe(false);
+    });
+});
+
+describe('passwordHint', () => {
+    test('조건을 모두 만족하면 빈 문자열을 반환한다', () => {
+        expect(passwordHint('abc12345')).toBe('');
+    });
+
+    test('길이가 짧으면 안내에 "자 이상"이 포함된다', () => {
+        expect(passwordHint('a1')).toMatch(/자 이상/);
+    });
+
+    test('영문이 없으면 안내에 "영문"이 포함된다', () => {
+        expect(passwordHint('12345678')).toMatch(/영문/);
+    });
+
+    test('숫자가 없으면 안내에 "숫자"가 포함된다', () => {
+        expect(passwordHint('abcdefgh')).toMatch(/숫자/);
+    });
+
+    test('빈 문자열이면 세 조건 모두 부족하다고 안내한다', () => {
+        const hint = passwordHint('');
+        expect(hint).toMatch(/자 이상/);
+        expect(hint).toMatch(/영문/);
+        expect(hint).toMatch(/숫자/);
+    });
+});
+
+describe('canSubmitPasswordChange', () => {
+    test('현재 비밀번호 입력·새 비밀번호 형식·확인 일치·현재와 다름을 모두 만족하면 true, 하나라도 어긋나면 false', () => {
+        expect(canSubmitPasswordChange('oldpass1', 'newpass2', 'newpass2', false)).toBe(true);
+        expect(canSubmitPasswordChange('', 'newpass2', 'newpass2', false)).toBe(false); // 현재 비밀번호 미입력
+        expect(canSubmitPasswordChange('oldpass1', 'onlyletters', 'onlyletters', false)).toBe(false); // 새 비밀번호 형식(숫자 없음)
+        expect(canSubmitPasswordChange('oldpass1', 'newpass2', 'different3', false)).toBe(false); // 확인 불일치
+        expect(canSubmitPasswordChange('oldpass1', 'oldpass1', 'oldpass1', false)).toBe(false); // 현재와 동일
+        expect(canSubmitPasswordChange('oldpass1', 'newpass2', 'newpass2', true)).toBe(false); // 로딩 중
     });
 });

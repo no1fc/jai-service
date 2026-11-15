@@ -15,7 +15,7 @@ const KAKAO_BRAND_STYLE = { backgroundColor: '#FEE500', color: '#191919' } as co
 
 export default function KakaoButton({ kakaoEnabled, agreed, returnTo }: KakaoButtonProps) {
     if (!kakaoEnabled) {
-        return <p className="text-sm text-text-muted">카카오 로그인은 현재 준비 중입니다. 휴대폰 인증을 이용해 주세요.</p>;
+        return <p className="text-sm text-text-muted">카카오 로그인은 현재 준비 중입니다. 이메일로 가입·로그인해 주세요.</p>;
     }
 
     if (!agreed) {

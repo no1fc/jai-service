@@ -3,7 +3,8 @@
 /** 상담사용 리포트 보관함 — 유형 필터 + 키워드 검색(디바운스 300ms). `/admin/leads` 표 스타일을 따른다. */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ANALYSIS_SCOPE_LABEL, ANALYSIS_TYPE_LABEL, ANALYSIS_TYPES, type AnalysisRequest } from '@/lib/analysis/schema';
+import { ANALYSIS_SCOPE_LABEL, ANALYSIS_TYPE_LABEL, ANALYSIS_TYPES, type AnalysisRequest, type ReportKind } from '@/lib/analysis/schema';
+import { kindBadgeLabel } from '@/lib/analysis/labels';
 
 const SEARCH_DEBOUNCE_MS = 300;
 type TypeFilter = AnalysisRequest['type'] | '';
@@ -18,6 +19,7 @@ interface AdminReportRow {
     scope: AnalysisRequest['scope'];
     createdAt: string;
     requestCount: number;
+    kind: ReportKind;
 }
 
 /** 입력값을 300ms 디바운스한 뒤 돌려준다(검색어 타이핑마다 요청을 보내지 않도록). */
@@ -86,7 +88,12 @@ export default function AdminAnalysisReportsPage() {
                                 <tr key={r.id} className="border-t border-[var(--color-border)] hover:bg-[var(--color-bg)]">
                                     <td className="px-3 py-2 whitespace-nowrap">{new Date(r.createdAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</td>
                                     <td className="px-3 py-2">{ANALYSIS_TYPE_LABEL[r.type]}</td>
-                                    <td className="px-3 py-2">{r.keyword}</td>
+                                    <td className="px-3 py-2">
+                                        {r.keyword}
+                                        {kindBadgeLabel(r.kind) && (
+                                            <span className="ml-2 inline-flex items-center h-5 px-2 rounded-full bg-[var(--color-bg)] text-[var(--color-text-secondary)] text-xs font-semibold border border-[var(--color-border)]">{kindBadgeLabel(r.kind)}</span>
+                                        )}
+                                    </td>
                                     <td className="px-3 py-2">{ANALYSIS_SCOPE_LABEL[r.scope]}</td>
                                     <td className="px-3 py-2">{r.requestCount}</td>
                                     <td className="px-3 py-2">

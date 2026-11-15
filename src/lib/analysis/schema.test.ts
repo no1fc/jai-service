@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analysisRequestSchema, jobReportSchema, industryReportSchema, reportContentSchema } from './schema';
+import { analysisRequestSchema, compareReportSchema, compareRequestSchema, isValidReportKeyword, jobReportSchema, industryReportSchema, reportContentSchema } from './schema';
 
 const req = { type: 'job', keyword: '핀테크 PM', scope: 'kr', includeCompetitors: true, includeTrends: false };
 
@@ -52,5 +52,72 @@ describe('report schemas', () => {
         };
         expect(industryReportSchema.safeParse(ind).success).toBe(true);
         expect(industryReportSchema.safeParse({ ...ind, companies: ind.companies.slice(0, 2) }).success).toBe(false);
+    });
+});
+
+describe('compareRequestSchema', () => {
+    const base = { type: 'job', scope: 'kr', includeCompetitors: true, includeTrends: true };
+    it('키워드 2~3개 요청을 통과시킨다', () => {
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM', '데이터 분석가'] }).success).toBe(true);
+    });
+    it('키워드 1개 또는 4개는 거부한다', () => {
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM'] }).success).toBe(false);
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['a', 'b', 'c', 'd'] }).success).toBe(false);
+    });
+    it('51자 항목이 있으면 거부한다', () => {
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM', 'a'.repeat(51)] }).success).toBe(false);
+    });
+    it('정규화 기준 중복 키워드가 있으면 거부한다(대소문자만 다른 경우 포함)', () => {
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM', '핀테크 pm'] }).success).toBe(false);
+        expect(compareRequestSchema.safeParse({ ...base, keywords: ['핀테크 PM', '데이터 분석가', '핀테크 pm'] }).success).toBe(false);
+    });
+});
+
+describe('isValidReportKeyword', () => {
+    it('정상 키워드(한글·공백)는 true를 반환한다', () => {
+        expect(isValidReportKeyword('핀테크 PM')).toBe(true);
+    });
+    it('1자(최소 2자 미만)는 false를 반환한다', () => {
+        expect(isValidReportKeyword('A')).toBe(false);
+    });
+    it('허용되지 않는 문자(이모지·쉼표·따옴표 등)가 섞이면 false를 반환한다', () => {
+        expect(isValidReportKeyword('핀테크 PM 🚀')).toBe(false);
+        expect(isValidReportKeyword('핀테크, PM')).toBe(false);
+        expect(isValidReportKeyword('"핀테크 PM"')).toBe(false);
+    });
+    it('50자를 넘으면 false를 반환한다', () => {
+        expect(isValidReportKeyword('가'.repeat(51))).toBe(false);
+    });
+    it('앞뒤 공백은 trim 후 검사한다', () => {
+        expect(isValidReportKeyword('  핀테크 PM  ')).toBe(true);
+    });
+});
+
+describe('compareReportSchema', () => {
+    const compareItem = (keyword: string) => ({
+        keyword, overview: '요약', mainTasks: ['a', 'b', 'c'], keySkills: ['SQL'],
+        salary: { entry: '3,000만 원', mid: '4,500만 원' }, demandLevel: 'high', pros: ['장점'], cons: ['단점'],
+    });
+    const compare = {
+        title: '핀테크 PM vs 데이터 분석가', summary: '두 직무를 비교합니다.',
+        items: [compareItem('핀테크 PM'), compareItem('데이터 분석가')],
+        comparison: {
+            criteria: [
+                { name: '진입 난이도', values: ['중', '상'] },
+                { name: '연봉', values: ['중', '중상'] },
+                { name: '채용 수요', values: ['상', '중'] },
+            ],
+            recommendation: '경력 전환자라면 핀테크 PM을 추천합니다.',
+            fitBy: [{ profile: '경력 전환자', keyword: '핀테크 PM', reason: '기존 기획 경력을 살릴 수 있습니다.' }],
+        },
+        relatedJobs: ['서비스 기획자'],
+    };
+    it('정상 픽스처를 통과시킨다', () => expect(compareReportSchema.safeParse(compare).success).toBe(true));
+    it('items 2개인데 criteria.values가 3개면 거부한다', () => {
+        const broken = { ...compare, comparison: { ...compare.comparison, criteria: [{ name: '진입 난이도', values: ['중', '상', '하'] }, ...compare.comparison.criteria.slice(1)] } };
+        expect(compareReportSchema.safeParse(broken).success).toBe(false);
+    });
+    it('reportContentSchema union으로도 통과한다', () => {
+        expect(reportContentSchema.safeParse(compare).success).toBe(true);
     });
 });

@@ -5,7 +5,8 @@
 import sql from 'mssql';
 import { getPool } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import type { AnalysisRequest, PublicReport, ReportContent, ReportMeta } from './schema';
+import { normalizeKeyword } from './keywords';
+import type { AnalysisRequest, PublicReport, ReportContent, ReportKind, ReportMeta } from './schema';
 
 export type Actor = { kind: 'anon' } | { kind: 'user'; userId: number } | { kind: 'admin'; username: string };
 
@@ -19,6 +20,7 @@ export interface StoredReport {
     scope: AnalysisRequest['scope'];
     include_competitors: boolean;
     include_trends: boolean;
+    kind: ReportKind;
     cache_key: string;
     content: string;
     meta: string;
@@ -29,9 +31,17 @@ export interface StoredReport {
     expires_at: Date;
 }
 
+/**
+ * insertReport 입력 — 단일/비교 공통(설계서 5.4). keywords는 요청 순서 그대로("A, B"로 저장),
+ * keyword_norm은 정규화 후 정렬해 " | "로 결합한다(단일은 1개라 둘 다 같은 값이 된다).
+ */
 export interface InsertReportInput {
-    req: AnalysisRequest;
-    keywordNorm: string;
+    type: AnalysisRequest['type'];
+    keywords: string[];
+    scope: AnalysisRequest['scope'];
+    includeCompetitors: boolean;
+    includeTrends: boolean;
+    kind: ReportKind;
     cacheKey: string;
     content: ReportContent;
     meta: ReportMeta;
@@ -49,6 +59,8 @@ export interface ReportListItem {
     scope: string;
     created_at: Date;
     request_count: number;
+    /** 관리자 목록(listReports)에는 아직 select하지 않아 undefined일 수 있다(보관함 "비교" 배지만 필요, Task 19). */
+    kind?: ReportKind;
 }
 
 export interface DashboardTopRow { type: string; keyword: string; cnt: number }
@@ -74,8 +86,12 @@ export interface DashboardStats {
 
 export const FRESH_REPORT_SQL = 'SELECT TOP 1 * FROM analysis_reports WHERE cache_key = @cacheKey AND expires_at > SYSUTCDATETIME() ORDER BY created_at DESC';
 
-const INSERT_REPORT_SQL = `INSERT INTO analysis_reports (type, keyword, keyword_norm, scope, include_competitors, include_trends, cache_key, content, meta, model_name, input_tokens, output_tokens, created_at, expires_at)
-    OUTPUT INSERTED.* VALUES (@type, @keyword, @keywordNorm, @scope, @comp, @trends, @cacheKey, @content, @meta, @model, @inTok, @outTok, SYSUTCDATETIME(), DATEADD(day, @ttl, SYSUTCDATETIME()))`;
+const FIND_JOB_BY_PREFIX_SQL = `SELECT TOP (@limit) keyword, content FROM analysis_reports
+    WHERE type = 'job' AND kind = 'single' AND keyword_norm LIKE @prefix + '%' ESCAPE '\\'
+    ORDER BY created_at DESC`;
+
+const INSERT_REPORT_SQL = `INSERT INTO analysis_reports (type, keyword, keyword_norm, scope, include_competitors, include_trends, kind, cache_key, content, meta, model_name, input_tokens, output_tokens, created_at, expires_at)
+    OUTPUT INSERTED.* VALUES (@type, @keyword, @keywordNorm, @scope, @comp, @trends, @kind, @cacheKey, @content, @meta, @model, @inTok, @outTok, SYSUTCDATETIME(), DATEADD(day, @ttl, SYSUTCDATETIME()))`;
 
 const COUNT_USER_TODAY_SQL = 'SELECT COUNT(*) AS c FROM analysis_requests WHERE user_id = @userId AND cache_hit = 0 AND created_at > DATEADD(hour, -24, SYSUTCDATETIME())';
 const COUNT_ADMIN_TODAY_SQL = 'SELECT COUNT(*) AS c FROM analysis_requests WHERE admin_username = @username AND cache_hit = 0 AND created_at > DATEADD(hour, -24, SYSUTCDATETIME())';
@@ -86,12 +102,13 @@ const LIBRARY_MERGE_SQL = `MERGE analysis_library AS t USING (SELECT @userId AS 
 const REMOVE_LIBRARY_SQL = `DELETE l FROM analysis_library l JOIN analysis_reports r ON r.id = l.report_id
     WHERE l.user_id = @userId AND r.public_id = @publicId`;
 
-const LIST_LIBRARY_SQL = `SELECT r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at,
+const LIST_LIBRARY_SQL = `SELECT r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at, r.kind,
     (SELECT COUNT(*) FROM analysis_requests q WHERE q.report_id = r.id) AS request_count
     FROM analysis_library l JOIN analysis_reports r ON r.id = l.report_id WHERE l.user_id = @userId ORDER BY l.created_at DESC`;
 
+// 비교 리포트(kind='compare')는 키워드 조합이 제각각이라 TOP 10 집계에서 제외한다(설계서 5.4).
 export const DASHBOARD_TOP_SQL = `SELECT TOP 10 r.type, r.keyword_norm AS keyword, COUNT(*) AS cnt FROM analysis_requests q JOIN analysis_reports r ON r.id = q.report_id
-    WHERE r.type = @type AND q.created_at > DATEADD(day, -30, SYSUTCDATETIME()) GROUP BY r.type, r.keyword_norm ORDER BY cnt DESC`;
+    WHERE r.type = @type AND r.kind = 'single' AND q.created_at > DATEADD(day, -30, SYSUTCDATETIME()) GROUP BY r.type, r.keyword_norm ORDER BY cnt DESC`;
 
 const DASHBOARD_COUNT_SQL = (windowClause: string) => `SELECT COUNT(*) AS c FROM analysis_requests WHERE cache_hit = 0 AND created_at > ${windowClause}`;
 const DASHBOARD_HIT_RATE_SQL = `SELECT COUNT(*) AS total, SUM(CASE WHEN cache_hit = 1 THEN 1 ELSE 0 END) AS hits
@@ -103,7 +120,7 @@ const DASHBOARD_RECENT_SQL = `SELECT TOP 20 r.public_id, r.type, r.keyword, q.ac
     ORDER BY q.created_at DESC`;
 
 // ponytail: 목록은 TOP 500 고정, 검색은 LIKE. 리포트가 수천 건을 넘으면 페이지네이션 추가
-const LIST_SQL = (where: string) => `SELECT TOP 500 r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at,
+const LIST_SQL = (where: string) => `SELECT TOP 500 r.id, r.public_id, r.type, r.keyword, r.scope, r.created_at, r.kind,
     (SELECT COUNT(*) FROM analysis_requests q WHERE q.report_id = r.id) AS request_count FROM analysis_reports r ${where} ORDER BY r.created_at DESC`;
 
 /** MSSQL 오류 번호 208("Invalid object name") — 테이블이 아직 생성되지 않은 경우. */
@@ -117,15 +134,62 @@ export async function findFreshReport(cacheKey: string): Promise<StoredReport | 
     return (r.recordset[0] as StoredReport | undefined) ?? null;
 }
 
+/**
+ * LIKE 패턴의 와일드카드(\, %, _, [)를 이스케이프한다 — 사용자 입력을 LIKE 접두 검색에 안전하게 쓰기 위함.
+ * normalizeKeyword가 이미 %, _, [ 를 허용 문자셋에서 제외하지만, LIKE 사용 지점에서 이중으로 방어한다.
+ */
+export function escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_[]/g, (ch) => `\\${ch}`);
+}
+
+/** keyword를 그대로 relatedJobs 배열로 들고 있는, suggest.ts 입력용 리포트 요약. */
+export interface JobReportSuggestSource {
+    keyword: string;
+    relatedJobs: string[];
+}
+
+/** content JSON에서 relatedJobs(문자열 배열)만 뽑아낸다. 파싱 실패·형식 불일치는 빈 배열로 건너뛴다. */
+function parseRelatedJobs(content: string): string[] {
+    try {
+        const parsed = JSON.parse(content) as { relatedJobs?: unknown };
+        if (!Array.isArray(parsed.relatedJobs)) return [];
+        return parsed.relatedJobs.filter((v): v is string => typeof v === 'string');
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * 입력 중 유사 직무 추천(설계서 6장 B-3)용 — 접두사로 시작하는 단일 직무 리포트를 최신순으로 조회한다.
+ * keyword_norm LIKE 검색은 정규화·이스케이프한 접두사만 파라미터로 바인딩한다(LIKE 인젝션 방지).
+ */
+export async function findJobReportsByPrefix(prefix: string, limit = 20): Promise<JobReportSuggestSource[]> {
+    const normalizedPrefix = normalizeKeyword(prefix);
+    if (!normalizedPrefix) return [];
+    const pool = await getPool();
+    const escapedPrefix = escapeLikePattern(normalizedPrefix);
+    const r = await pool.request()
+        .input('prefix', sql.NVarChar(160), escapedPrefix)
+        .input('limit', sql.Int, limit)
+        .query(FIND_JOB_BY_PREFIX_SQL);
+    return (r.recordset as Array<{ keyword: string; content: string }>).map((row) => ({
+        keyword: row.keyword,
+        relatedJobs: parseRelatedJobs(row.content),
+    }));
+}
+
 export async function insertReport(input: InsertReportInput): Promise<StoredReport> {
     const pool = await getPool();
+    const keyword = input.keywords.join(', ');
+    const keywordNorm = [...input.keywords].map(normalizeKeyword).sort().join(' | ');
     const r = await pool.request()
-        .input('type', sql.VarChar(10), input.req.type)
-        .input('keyword', sql.NVarChar(50), input.req.keyword)
-        .input('keywordNorm', sql.NVarChar(50), input.keywordNorm)
-        .input('scope', sql.VarChar(10), input.req.scope)
-        .input('comp', input.req.includeCompetitors)
-        .input('trends', input.req.includeTrends)
+        .input('type', sql.VarChar(10), input.type)
+        .input('keyword', sql.NVarChar(160), keyword)
+        .input('keywordNorm', sql.NVarChar(160), keywordNorm)
+        .input('scope', sql.VarChar(10), input.scope)
+        .input('comp', input.includeCompetitors)
+        .input('trends', input.includeTrends)
+        .input('kind', sql.VarChar(10), input.kind)
         .input('cacheKey', sql.VarChar(64), input.cacheKey)
         .input('content', sql.NVarChar(sql.MAX), JSON.stringify(input.content))
         .input('meta', sql.NVarChar(sql.MAX), JSON.stringify(input.meta))
@@ -257,7 +321,10 @@ export async function getDashboard(): Promise<DashboardStats> {
     };
 }
 
-/** 저장된 행을 공개 응답(PublicReport)으로 변환한다. content/meta JSON 파싱 실패 시 throw(호출자가 500 처리). */
+/**
+ * 저장된 행을 공개 응답(PublicReport)으로 변환한다. content/meta JSON 파싱 실패 시 throw(호출자가 500 처리).
+ * keywords는 kind가 'compare'면 저장된 "A, B" 형태의 keyword를 다시 나눠 복원하고, 단일이면 [keyword] 그대로다.
+ */
 export function toPublicReport(row: StoredReport): PublicReport {
     return {
         publicId: row.public_id,
@@ -268,5 +335,8 @@ export function toPublicReport(row: StoredReport): PublicReport {
         meta: JSON.parse(row.meta) as ReportMeta,
         createdAt: new Date(row.created_at).toISOString(),
         expiresAt: new Date(row.expires_at).toISOString(),
+        kind: row.kind,
+        keywords: row.kind === 'compare' ? row.keyword.split(', ') : [row.keyword],
+        options: { includeCompetitors: row.include_competitors, includeTrends: row.include_trends },
     };
 }

@@ -1,49 +1,48 @@
 /**
- * LoginForm의 판단 로직(순수 함수) — DOM·네트워크 의존 없이 vitest로 검증한다.
+ * LoginForm·SignupForm·PasswordChangeForm의 판단 로직(순수 함수) — DOM·네트워크 의존 없이 vitest로 검증한다.
+ * 이메일·비밀번호 형식 검증은 서버와 동일한 {@link ../../lib/analysis/auth/local-schema}를 재사용한다.
  */
-
-export type PhoneStep = 'phone' | 'code';
-
-/** 하이픈 유무를 모두 허용하는 국내 휴대폰 번호 형식(서버 phoneSchema와 동일한 패턴). */
-const PHONE_FORMAT_RE = /^01[016789]-?\d{3,4}-?\d{4}$/;
-
-/** 입력한 번호가 국내 휴대폰 번호 형식인지 판정한다(최종 검증은 서버가 한다). */
-export function isValidPhoneFormat(phone: string): boolean {
-    return PHONE_FORMAT_RE.test(phone);
-}
+import {
+    emailSchema,
+    passwordSchema,
+    PASSWORD_DIGIT_REGEX,
+    PASSWORD_LETTER_REGEX,
+    PASSWORD_MIN,
+} from '@/lib/analysis/auth/local-schema';
 
 /** 두 필수 동의(개인정보 수집, 연령 확인)가 모두 체크됐을 때만 true. */
 export function isAgreed(consentCollect: boolean, consentAge: boolean): boolean {
     return consentCollect && consentAge;
 }
 
-/** "인증번호 받기" 버튼 활성 조건 — 동의·번호 형식·로딩 상태를 모두 본다. */
-export function canRequestCode(agreed: boolean, phone: string, loading: boolean): boolean {
-    return agreed && !loading && isValidPhoneFormat(phone);
+/** 로그인 버튼 활성화 여부 — 이메일 형식·비밀번호 입력 여부만 본다(복잡도는 가입 때 이미 검증됨). */
+export function canSubmitLogin(email: string, password: string, loading: boolean): boolean {
+    if (loading) return false;
+    return emailSchema.safeParse(email).success && password.length > 0;
 }
 
-/** "확인" 버튼 활성 조건 — 6자리 코드가 모두 입력됐고 로딩 중이 아닐 때. */
-export function canVerifyCode(code: string, loading: boolean): boolean {
-    return !loading && code.length === 6;
+/** 가입 버튼 활성화 여부 — 동의·이메일 형식·비밀번호 형식·확인 일치를 모두 만족해야 한다. */
+export function canSubmitSignup(agreed: boolean, email: string, password: string, confirm: string, loading: boolean): boolean {
+    if (loading || !agreed) return false;
+    if (!emailSchema.safeParse(email).success) return false;
+    if (!passwordSchema.safeParse(password).success) return false;
+    return password === confirm;
 }
 
-/** 인증번호 발송 결과에 따라 다음 단계를 정한다 — 성공해야만 code 단계로 전환하고, 실패하면 현재 단계를 유지한다. */
-export function nextPhoneStep(current: PhoneStep, sendSucceeded: boolean): PhoneStep {
-    return sendSucceeded ? 'code' : current;
+/** 비밀번호가 아직 부족한 조건을 안내하는 문구(입력 중 표시) — 모두 만족하면 빈 문자열. */
+export function passwordHint(password: string): string {
+    const missing: string[] = [];
+    if (password.length < PASSWORD_MIN) missing.push(`${PASSWORD_MIN}자 이상`);
+    if (!PASSWORD_LETTER_REGEX.test(password)) missing.push('영문');
+    if (!PASSWORD_DIGIT_REGEX.test(password)) missing.push('숫자');
+    return missing.length === 0 ? '' : `${missing.join('·')} 포함 필요`;
 }
 
-/** 발송 응답의 expiresInSec을 파싱한다 — 값이 없거나 숫자가 아니면 기본값(180초)을 쓴다. */
-export function resolveExpiresInSec(raw: unknown, fallbackSec = 180): number {
-    const n = Number(raw);
-    return Number.isFinite(n) && n > 0 ? n : fallbackSec;
-}
-
-/** 남은 초를 "분:초" 문자열로 포맷한다(초는 두 자리로 0을 채움, 음수는 0으로 바닥 처리). */
-export function formatCountdown(sec: number): string {
-    const safeSec = Math.max(0, Math.trunc(sec));
-    const m = Math.floor(safeSec / 60);
-    const s = safeSec % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
+/** 비밀번호 변경 버튼 활성화 여부 — 현재 비밀번호 입력·새 비밀번호 형식·확인 일치·현재와 다름을 모두 만족해야 한다. */
+export function canSubmitPasswordChange(current: string, next: string, confirm: string, loading: boolean): boolean {
+    if (loading || current.length === 0) return false;
+    if (!passwordSchema.safeParse(next).success) return false;
+    return next === confirm && next !== current;
 }
 
 const CALLBACK_ERROR_MESSAGES: Record<string, string> = {

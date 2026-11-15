@@ -2,11 +2,23 @@
  * recent-reports.ts 테스트 — localStorage 접근 실패 시 저하, pushRecent 불변·중복 제거·20개 제한.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { MAX_RECENT, pushRecent, readRecent, removeRecent, type RecentItem } from './recent-reports';
+import { MAX_RECENT, pushRecent, readRecent, removeRecent, toRecentItem, type RecentItem } from './recent-reports';
+import type { PublicReport } from '@/lib/analysis/schema';
 
 function makeItem(publicId: string): RecentItem {
     return { publicId, type: 'job', keyword: `키워드-${publicId}`, createdAt: new Date().toISOString() };
 }
+
+describe('toRecentItem', () => {
+    test('리포트의 식별 필드만 추려 RecentItem으로 변환한다', () => {
+        const report = {
+            publicId: 'pub-1', type: 'job', keyword: '핀테크 PM', createdAt: '2026-11-15T00:00:00.000Z', kind: 'single',
+        } as unknown as PublicReport;
+        expect(toRecentItem(report)).toEqual({
+            publicId: 'pub-1', type: 'job', keyword: '핀테크 PM', createdAt: '2026-11-15T00:00:00.000Z', kind: 'single',
+        });
+    });
+});
 
 describe('readRecent (localStorage 없음)', () => {
     test('globalThis.localStorage가 미정의면 빈 배열을 반환한다', () => {

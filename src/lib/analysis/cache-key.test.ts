@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildCacheKey, normalizeKeyword } from './cache-key';
+import { buildCacheKey, buildCompareCacheKey, normalizeKeyword } from './cache-key';
 
 const base = { type: 'job', keyword: '핀테크 PM', scope: 'kr', includeCompetitors: true, includeTrends: true } as const;
 
-describe('normalizeKeyword', () => {
-    it('공백·대소문자·전각을 정규화한다', () => {
+describe('cache-key.ts의 normalizeKeyword 재노출', () => {
+    it('keywords.ts의 normalizeKeyword를 그대로 재노출한다(기존 import 경로 유지)', () => {
         expect(normalizeKeyword('  핀테크   PM ')).toBe('핀테크 pm');
-        expect(normalizeKeyword('ＡＩ 반도체')).toBe('ai 반도체');
-    });
-    it('허용 문자(한글·영문·숫자·공백·/+#.&-) 외는 제거한다', () => {
-        expect(normalizeKeyword('C++ 개발자!!')).toBe('c++ 개발자');
-        expect(normalizeKeyword('UX/UI 디자이너 (신입)')).toBe('ux/ui 디자이너 신입');
     });
 });
 
@@ -25,5 +20,18 @@ describe('buildCacheKey', () => {
         expect(buildCacheKey({ ...base, type: 'industry' })).not.toBe(k);
         expect(buildCacheKey({ ...base, scope: 'global' })).not.toBe(k);
         expect(buildCacheKey({ ...base, includeTrends: false })).not.toBe(k);
+    });
+});
+
+const compareBase = { type: 'job', keywords: ['B', 'A'], scope: 'kr', includeCompetitors: true, includeTrends: true } as const;
+
+describe('buildCompareCacheKey', () => {
+    it('키워드 순서·대소문자·공백과 무관하게 같은 키다', () => {
+        expect(buildCompareCacheKey(compareBase)).toBe(buildCompareCacheKey({ ...compareBase, keywords: ['a', 'b '] }));
+    });
+    it('단일 buildCacheKey와는 같은 키워드라도 항상 다른 키다', () => {
+        const single = buildCacheKey({ type: 'job', keyword: 'A', scope: 'kr', includeCompetitors: true, includeTrends: true });
+        const compare = buildCompareCacheKey({ ...compareBase, keywords: ['A'] });
+        expect(compare).not.toBe(single);
     });
 });

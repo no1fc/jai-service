@@ -62,7 +62,7 @@ export async function middleware(request: NextRequest) {
 
     // 일반 관리자(Admin) 허용 경로: 대시보드 메인, 상담 신청, 사용량 통계, 지점 관리, API 키 설정, 직무/산업 분석
     // 일반 관리자(Admin) 차단 경로: 관리자 지정, 프롬프트 설정 등 그 외
-    const isAdminOnlyAllowed = path === '/admin' || path.startsWith('/admin/leads') || path.startsWith('/admin/usage') || path.startsWith('/admin/branches') || path.startsWith('/admin/settings/api-keys') || path.startsWith('/admin/analysis');
+    const isAdminOnlyAllowed = path === '/admin' || path.startsWith('/admin/leads') || path.startsWith('/admin/usage') || path.startsWith('/admin/branches') || path.startsWith('/admin/settings/api-keys') || path.startsWith('/admin/analysis') || path.startsWith('/admin/app-users');
     
     if (role === 'admin' && !isAdminOnlyAllowed) {
         // 권한이 없는 페이지 접근 시 대시보드로 강제 이동 (또는 403 페이지로 이동 가능)

@@ -8,7 +8,7 @@ vi.mock('@/lib/rate-limit', () => ({ getClientIp: vi.fn() }));
 
 import { requireRole } from '@/lib/auth';
 import { getReportByPublicId, listReports } from '@/lib/analysis/reports';
-import { generateAnalysis } from '@/lib/analysis/generate';
+import { generateAnalysis, generateComparison } from '@/lib/analysis/generate';
 import { getClientIp } from '@/lib/rate-limit';
 import { GET, POST } from './route';
 
@@ -50,7 +50,7 @@ describe('GET /api/admin/analysis/reports', () => {
         vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
         const createdAt = new Date('2026-01-01T00:00:00.000Z');
         vi.mocked(listReports).mockResolvedValue([
-            { id: 1, public_id: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', created_at: createdAt, request_count: 3 },
+            { id: 1, public_id: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', created_at: createdAt, request_count: 3, kind: 'single' },
         ]);
         const res = await GET(getRequest('?type=job&q=PM'));
         expect(res.status).toBe(200);
@@ -58,8 +58,19 @@ describe('GET /api/admin/analysis/reports', () => {
         const json = await res.json();
         expect(json).toEqual({
             success: true,
-            reports: [{ id: 1, publicId: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', createdAt: createdAt.toISOString(), requestCount: 3 }],
+            reports: [{ id: 1, publicId: 'pub-1', type: 'job', keyword: '핀테크 PM', scope: 'kr', createdAt: createdAt.toISOString(), requestCount: 3, kind: 'single' }],
         });
+    });
+
+    it('비교 리포트(kind=compare)도 kind 필드를 그대로 전달한다("비교" 배지 판단용)', async () => {
+        vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
+        const createdAt = new Date('2026-01-01T00:00:00.000Z');
+        vi.mocked(listReports).mockResolvedValue([
+            { id: 2, public_id: 'pub-2', type: 'job', keyword: '핀테크 PM, 데이터 분석가', scope: 'kr', created_at: createdAt, request_count: 1, kind: 'compare' },
+        ]);
+        const res = await GET(getRequest());
+        const json = await res.json();
+        expect(json.reports[0].kind).toBe('compare');
     });
 });
 
@@ -110,5 +121,27 @@ describe('POST /api/admin/analysis/reports', () => {
         expect(res.status).toBe(201);
         const json = await res.json();
         expect(json).toEqual({ success: true, report, cached: false, id: 42 });
+    });
+
+    it('keywords(배열)가 있으면 generateComparison을 force와 함께 호출한다', async () => {
+        vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
+        vi.mocked(generateComparison).mockResolvedValue({ ok: true, report: { publicId: 'uuid' } as never, cached: false });
+        vi.mocked(getReportByPublicId).mockResolvedValue({ id: 42 } as never);
+
+        await POST(postRequest({ type: 'job', keywords: ['핀테크 PM', '데이터 분석가'], scope: 'kr', force: true }));
+        expect(generateComparison).toHaveBeenCalledWith(
+            expect.objectContaining({ keywords: ['핀테크 PM', '데이터 분석가'] }),
+            { kind: 'admin', username: 'admin1' },
+            '1.1.1.1',
+            { force: true },
+        );
+        expect(generateAnalysis).not.toHaveBeenCalled();
+    });
+
+    it('keywords가 1개면(비교 조건 미달) 400을 반환한다', async () => {
+        vi.mocked(requireRole).mockResolvedValue({ id: 'admin1', role: 'admin' });
+        const res = await POST(postRequest({ type: 'job', keywords: ['핀테크 PM'], scope: 'kr' }));
+        expect(res.status).toBe(400);
+        expect(generateComparison).not.toHaveBeenCalled();
     });
 });

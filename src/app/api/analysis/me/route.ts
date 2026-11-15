@@ -15,7 +15,16 @@ export async function GET() {
         const user = await getUserById(current.id);
         if (!user) return apiSuccess({ user: null });
 
-        return apiSuccess({ user: { id: user.id, provider: user.provider, email: user.email } });
+        return apiSuccess({
+            user: {
+                id: user.id,
+                provider: user.provider,
+                email: user.email,
+                createdAt: user.created_at,
+                lastLoginAt: user.last_login_at,
+                mustChangePassword: user.must_change_password,
+            },
+        });
     } catch (error) {
         logger.error('/api/analysis/me 오류:', error);
         return apiError('사용자 조회에 실패했습니다.', 500);

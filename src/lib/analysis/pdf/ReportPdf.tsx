@@ -7,7 +7,7 @@ import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/rendere
 import { dataBadgeLabels } from '../labels';
 import {
     ANALYSIS_TYPE_LABEL,
-    type IndustryReport, type JobReport, type PublicReport, type Work24Summary,
+    type CompareReport, type IndustryReport, type JobReport, type PublicReport, type Work24Summary,
 } from '../schema';
 
 /** 디자인 토큰 값(`globals.css`의 `--color-*`와 동일) — PDF 전용 하드코딩 허용 지점(위 주석 참고). */
@@ -41,6 +41,12 @@ const styles = StyleSheet.create({
     tableLabel: { width: 90, fontSize: 9, color: PDF_COLORS.textSecondary },
     tableValue: { flex: 1, fontSize: 9 },
     sourceItem: { fontSize: 8, color: PDF_COLORS.accent, marginBottom: 2 },
+    compareItem: { borderBottom: `1px solid ${PDF_COLORS.border}`, paddingBottom: 8, marginBottom: 8 },
+    compareItemTitle: { fontSize: 11, fontWeight: 700, marginBottom: 3 },
+    compareRow: { flexDirection: 'row', borderBottom: `1px solid ${PDF_COLORS.border}`, paddingVertical: 4 },
+    compareHeadCell: { flex: 1, fontSize: 9, fontWeight: 700 },
+    compareLabelCell: { width: 90, fontSize: 9, color: PDF_COLORS.textSecondary },
+    compareValueCell: { flex: 1, fontSize: 9 },
     footer: {
         position: 'absolute', bottom: 24, left: 40, right: 40, textAlign: 'center',
         fontSize: 8, color: PDF_COLORS.textSecondary, borderTop: `1px solid ${PDF_COLORS.border}`, paddingTop: 6,
@@ -49,11 +55,12 @@ const styles = StyleSheet.create({
 
 function Header({ report }: { report: PublicReport }) {
     const createdDate = report.createdAt.slice(0, 10);
+    const typeLabel = report.kind === 'compare' ? '비교' : ANALYSIS_TYPE_LABEL[report.type];
     return (
         <View style={styles.header}>
             <Text style={styles.brand}>잡모아 J.AI</Text>
             <Text style={styles.title}>{report.content.title}</Text>
-            <Text style={styles.meta}>{ANALYSIS_TYPE_LABEL[report.type]} · {createdDate} 생성</Text>
+            <Text style={styles.meta}>{typeLabel} · {createdDate} 생성</Text>
             <View style={styles.badgeRow}>
                 {dataBadgeLabels(report).map(label => <Text key={label} style={styles.badge}>{label}</Text>)}
             </View>
@@ -160,6 +167,61 @@ function IndustryBody({ content, work24 }: { content: IndustryReport; work24: Wo
     );
 }
 
+/** 비교 리포트 항목 카드 1개 — 화면 CompareView의 ItemCard와 같은 정보를 세로로 나열한다. */
+function CompareItemCard({ item }: { item: CompareReport['items'][number] }) {
+    return (
+        <View style={styles.compareItem}>
+            <Text style={styles.compareItemTitle}>{item.keyword}</Text>
+            <Text style={styles.text}>{item.overview}</Text>
+            <Text style={styles.text}>수요 {DEMAND_LABEL[item.demandLevel]} · 연봉(신입~중간) {item.salary.entry} ~ {item.salary.mid}</Text>
+            <Text style={styles.text}>주요 업무 {item.mainTasks.join(', ')}</Text>
+            <Text style={styles.text}>핵심 역량 {item.keySkills.join(', ')}</Text>
+            {item.pros.length > 0 && <Text style={styles.text}>장점 {item.pros.join(' · ')}</Text>}
+            {item.cons.length > 0 && <Text style={styles.text}>단점 {item.cons.join(' · ')}</Text>}
+        </View>
+    );
+}
+
+/** 비교표 — 기준별로 한 행(View flex row), 열은 키워드 수만큼. */
+function CompareTable({ items, criteria }: { items: CompareReport['items']; criteria: CompareReport['comparison']['criteria'] }) {
+    return (
+        <View style={styles.table}>
+            <View style={styles.compareRow}>
+                <Text style={styles.compareLabelCell}>기준</Text>
+                {items.map(it => <Text key={it.keyword} style={styles.compareHeadCell}>{it.keyword}</Text>)}
+            </View>
+            {criteria.map(c => (
+                <View key={c.name} style={styles.compareRow}>
+                    <Text style={styles.compareLabelCell}>{c.name}</Text>
+                    {c.values.map((v, i) => <Text key={`${c.name}-${i}`} style={styles.compareValueCell}>{v}</Text>)}
+                </View>
+            ))}
+        </View>
+    );
+}
+
+function CompareBody({ content }: { content: CompareReport }) {
+    return (
+        <>
+            <Section title="항목별 요약">
+                {content.items.map(item => <CompareItemCard key={item.keyword} item={item} />)}
+            </Section>
+            <Section title="비교표">
+                <CompareTable items={content.items} criteria={content.comparison.criteria} />
+            </Section>
+            <Section title="추천">
+                <Text style={styles.text}>{content.comparison.recommendation}</Text>
+                {content.comparison.fitBy.map(f => (
+                    <Text key={f.profile} style={styles.listItem}>· {f.profile} → {f.keyword} — {f.reason}</Text>
+                ))}
+            </Section>
+            {content.relatedJobs.length > 0 && (
+                <Section title="관련 직무"><Text style={styles.text}>{content.relatedJobs.join(', ')}</Text></Section>
+            )}
+        </>
+    );
+}
+
 function SourcesList({ sources }: { sources: Array<{ title: string; uri: string }> }) {
     if (sources.length === 0) return null;
     return (
@@ -192,9 +254,11 @@ export default function ReportPdf({ report }: ReportPdfProps) {
             <Page size="A4" style={styles.page}>
                 <Header report={report} />
                 <Text style={styles.summary}>{content.summary}</Text>
-                {isJob
-                    ? <JobBody content={content as JobReport} work24={meta.work24} />
-                    : <IndustryBody content={content as IndustryReport} work24={meta.work24} />}
+                {report.kind === 'compare'
+                    ? <CompareBody content={content as CompareReport} />
+                    : isJob
+                        ? <JobBody content={content as JobReport} work24={meta.work24} />
+                        : <IndustryBody content={content as IndustryReport} work24={meta.work24} />}
                 <SourcesList sources={meta.sources} />
                 <Footer />
             </Page>

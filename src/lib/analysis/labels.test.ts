@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataBadgeLabels } from './labels';
+import { dataBadgeLabels, kindBadgeLabel } from './labels';
 import type { PublicReport } from './schema';
 
 function makeReport(dataUsed: PublicReport['meta']['dataUsed']): PublicReport {
@@ -8,6 +8,7 @@ function makeReport(dataUsed: PublicReport['meta']['dataUsed']): PublicReport {
         content: { invalid: true, reason: 'x' } as unknown as PublicReport['content'],
         meta: { dataUsed, work24: null, sources: [], searchEntryPoint: null, modelName: 'gemini-test' },
         createdAt: '2026-11-12T00:00:00.000Z', expiresAt: '2026-11-19T00:00:00.000Z',
+        kind: 'single', keywords: ['핀테크 PM'], options: { includeCompetitors: true, includeTrends: true },
     };
 }
 
@@ -26,5 +27,14 @@ describe('dataBadgeLabels', () => {
 
     it('아무 데이터도 반영되지 않으면 AI 지식 기반 라벨을 반환한다', () => {
         expect(dataBadgeLabels(makeReport([]))).toEqual(['AI 지식 기반']);
+    });
+});
+
+describe('kindBadgeLabel', () => {
+    it('비교 리포트면 "비교" 배지를 반환한다', () => {
+        expect(kindBadgeLabel('compare')).toBe('비교');
+    });
+    it('단일 리포트면 배지를 표시하지 않는다(null)', () => {
+        expect(kindBadgeLabel('single')).toBeNull();
     });
 });

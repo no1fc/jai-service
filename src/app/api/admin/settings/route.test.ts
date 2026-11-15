@@ -15,11 +15,7 @@ const RAW_SETTINGS: Record<string, string> = {
     work24_api_key: 'work24-secret-0001',
     kakao_rest_api_key: 'kakao-rest-secret-0002',
     kakao_client_secret: 'kakao-client-secret-0003',
-    sens_access_key: 'sens-access-secret-0004',
-    sens_secret_key: 'sens-secret-secret-0005',
     kakao_redirect_uri: 'http://localhost:3000/api/analysis/auth/kakao/callback',
-    sens_service_id: 'ncp:sms:kr:123456789012:service-id',
-    sens_sender: '01012345678',
 };
 
 beforeEach(() => {
@@ -50,8 +46,6 @@ describe('GET /api/admin/settings - 마스킹', () => {
         'work24_api_key',
         'kakao_rest_api_key',
         'kakao_client_secret',
-        'sens_access_key',
-        'sens_secret_key',
     ])('비밀값 %s는 원문이 비워지고 마스킹된 값만 노출된다', async (key) => {
         const res = await GET();
         const json = await res.json();
@@ -61,7 +55,7 @@ describe('GET /api/admin/settings - 마스킹', () => {
         expect(json.settings[`${key}_masked`]).not.toContain(RAW_SETTINGS[key]);
     });
 
-    it.each(['kakao_redirect_uri', 'sens_service_id', 'sens_sender'])(
+    it.each(['kakao_redirect_uri'])(
         '식별자/URL %s는 마스킹하지 않고 원문 그대로 노출된다',
         async (key) => {
             const res = await GET();

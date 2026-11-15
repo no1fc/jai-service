@@ -1,7 +1,7 @@
 import React from 'react';
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 
-/** 외부 콘솔(카카오 디벨로퍼스, 네이버 클라우드 등)로 새 탭에서 이동하는 링크. */
+/** 외부 콘솔(카카오 디벨로퍼스, 고용24 등)로 새 탭에서 이동하는 링크. */
 export function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
     return (
         <a

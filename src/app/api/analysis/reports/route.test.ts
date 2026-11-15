@@ -5,7 +5,7 @@ vi.mock('@/lib/analysis/generate');
 vi.mock('@/lib/analysis/auth/user-session');
 vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: vi.fn(), getClientIp: vi.fn() }));
 
-import { generateAnalysis } from '@/lib/analysis/generate';
+import { generateAnalysis, generateComparison } from '@/lib/analysis/generate';
 import { actorFromRequest } from '@/lib/analysis/auth/user-session';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { POST } from './route';
@@ -69,5 +69,30 @@ describe('POST /api/analysis/reports', () => {
         expect(res.status).toBe(200);
         const json = await res.json();
         expect(json).toEqual({ success: true, report, cached: true });
+    });
+});
+
+describe('POST /api/analysis/reports - 비교(keywords)', () => {
+    it('keywords가 4개면 400을 반환하고 generateComparison을 호출하지 않는다', async () => {
+        const res = await POST(postRequest({ type: 'job', keywords: ['AA', 'BB', 'CC', 'DD'], scope: 'kr' }));
+        expect(res.status).toBe(400);
+        expect(generateComparison).not.toHaveBeenCalled();
+    });
+
+    it('keywords가 2개면 generateComparison을 호출하고 201을 반환한다', async () => {
+        const report = { publicId: 'uuid' };
+        vi.mocked(generateComparison).mockResolvedValue({ ok: true, report: report as never, cached: false });
+        const res = await POST(postRequest({ type: 'job', keywords: ['핀테크 PM', '데이터 분석가'], scope: 'kr' }));
+        expect(res.status).toBe(201);
+        expect(generateComparison).toHaveBeenCalled();
+        expect(generateAnalysis).not.toHaveBeenCalled();
+    });
+
+    it('keyword와 keywords가 동시에 있으면 keywords를 우선한다', async () => {
+        const report = { publicId: 'uuid' };
+        vi.mocked(generateComparison).mockResolvedValue({ ok: true, report: report as never, cached: false });
+        await POST(postRequest({ type: 'job', keyword: '핀테크 PM', keywords: ['AA', 'BB'], scope: 'kr' }));
+        expect(generateComparison).toHaveBeenCalled();
+        expect(generateAnalysis).not.toHaveBeenCalled();
     });
 });

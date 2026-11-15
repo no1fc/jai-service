@@ -211,10 +211,6 @@ export default function ApiKeysSettingsPage() {
     const [kakaoRestApiKey, setKakaoRestApiKey] = useState('');
     const [kakaoClientSecret, setKakaoClientSecret] = useState('');
     const [kakaoRedirectUri, setKakaoRedirectUri] = useState('');
-    const [sensAccessKey, setSensAccessKey] = useState('');
-    const [sensSecretKey, setSensSecretKey] = useState('');
-    const [sensServiceId, setSensServiceId] = useState('');
-    const [sensSender, setSensSender] = useState('');
 
     useEffect(() => {
         fetchSettings();
@@ -247,15 +243,11 @@ export default function ApiKeysSettingsPage() {
                     setGeminiAnalysisModel(data.settings.gemini_analysis_model_name);
                 }
 
-                // 외부 연동 — 비밀값 5종은 마스킹된 표시값(_masked), 식별자/URL 3종은 원문을 그대로 보여준다.
+                // 외부 연동 — 비밀값 3종은 마스킹된 표시값(_masked), 식별자/URL 1종은 원문을 그대로 보여준다.
                 setWork24ApiKey(data.settings.work24_api_key_masked || '');
                 setKakaoRestApiKey(data.settings.kakao_rest_api_key_masked || '');
                 setKakaoClientSecret(data.settings.kakao_client_secret_masked || '');
                 setKakaoRedirectUri(data.settings.kakao_redirect_uri || '');
-                setSensAccessKey(data.settings.sens_access_key_masked || '');
-                setSensSecretKey(data.settings.sens_secret_key_masked || '');
-                setSensServiceId(data.settings.sens_service_id || '');
-                setSensSender(data.settings.sens_sender || '');
             }
         } catch (error) {
             logger.error('Failed to fetch settings:', error);
@@ -510,7 +502,7 @@ export default function ApiKeysSettingsPage() {
                                 외부 연동
                             </div>
                             <p className="text-[var(--color-text-muted)] text-sm">
-                                고용24·카카오 로그인·네이버 클라우드 SENS 연동에 쓰는 값입니다. 새 값을 입력하고 저장하면 이전 값을 덮어쓰며,
+                                고용24·카카오 로그인 연동에 쓰는 값입니다. 새 값을 입력하고 저장하면 이전 값을 덮어쓰며,
                                 비밀값은 조회 시 원문이 노출되지 않습니다.
                             </p>
                         </div>
@@ -527,10 +519,6 @@ export default function ApiKeysSettingsPage() {
                         <SecretField label="카카오 REST API 키" settingKey="kakao_rest_api_key" maskedValue={kakaoRestApiKey} onSave={handleSaveSecret} />
                         <SecretField label="카카오 Client Secret" settingKey="kakao_client_secret" maskedValue={kakaoClientSecret} onSave={handleSaveSecret} />
                         <SecretField label="카카오 Redirect URI" settingKey="kakao_redirect_uri" maskedValue={kakaoRedirectUri} onSave={handleSaveSecret} isSecret={false} />
-                        <SecretField label="SENS Access Key" settingKey="sens_access_key" maskedValue={sensAccessKey} onSave={handleSaveSecret} />
-                        <SecretField label="SENS Secret Key" settingKey="sens_secret_key" maskedValue={sensSecretKey} onSave={handleSaveSecret} />
-                        <SecretField label="SENS Service ID" settingKey="sens_service_id" maskedValue={sensServiceId} onSave={handleSaveSecret} isSecret={false} />
-                        <SecretField label="SENS 발신번호" settingKey="sens_sender" maskedValue={sensSender} onSave={handleSaveSecret} isSecret={false} />
                     </div>
                 </div>
             </div>

@@ -6,14 +6,10 @@ const SETTING_KEYS: Array<{ label: string; key: string; kind: string }> = [
     { label: '카카오 REST API 키', key: 'kakao_rest_api_key', kind: '비밀값' },
     { label: '카카오 Client Secret', key: 'kakao_client_secret', kind: '비밀값' },
     { label: '카카오 Redirect URI', key: 'kakao_redirect_uri', kind: '식별자' },
-    { label: 'SENS Access Key', key: 'sens_access_key', kind: '비밀값' },
-    { label: 'SENS Secret Key', key: 'sens_secret_key', kind: '비밀값' },
-    { label: 'SENS Service ID', key: 'sens_service_id', kind: '식별자' },
-    { label: 'SENS 발신번호', key: 'sens_sender', kind: '식별자' },
 ];
 
 /**
- * 비개발자용 본문과 분리한 기술 참고 블록 — 설정 키 이름, SMS_PROVIDER 환경변수, 개발 매뉴얼 링크.
+ * 비개발자용 본문과 분리한 기술 참고 블록 — 설정 키 이름, 개발 매뉴얼 링크.
  * 기본은 접힌 상태.
  */
 export function DeveloperNote() {
@@ -44,12 +40,6 @@ export function DeveloperNote() {
                         </tbody>
                     </table>
                 </div>
-
-                <p>
-                    실제 SMS 발송 여부는 환경변수 <code>SMS_PROVIDER=log|sens</code>로 정한다. <code>log</code> 또는 미설정이면
-                    서버 로그에만 인증번호를 출력하고, <code>sens</code>이면 SENS로 실제 발송한다. 운영에서 <code>log</code>이면
-                    발송 자체를 503으로 거부한다.
-                </p>
 
                 <p>
                     전체 기술 매뉴얼: <code>docs/외부연동-설정.md</code>
