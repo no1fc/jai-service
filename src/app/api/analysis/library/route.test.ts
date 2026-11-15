@@ -32,7 +32,7 @@ describe('GET /api/analysis/library', () => {
         vi.mocked(getCurrentUser).mockResolvedValue({ id: 7 });
         const createdAt = new Date('2026-01-01T00:00:00.000Z');
         vi.mocked(listLibrary).mockResolvedValue([
-            { id: 1, public_id: 'pub-1', type: 'job', keyword: '백엔드 개발자', scope: 'kr', created_at: createdAt, request_count: 1 },
+            { id: 1, public_id: 'pub-1', type: 'job', keyword: '백엔드 개발자', scope: 'kr', created_at: createdAt, request_count: 1, kind: 'single' },
         ]);
 
         const res = await GET(getRequest());
@@ -40,9 +40,27 @@ describe('GET /api/analysis/library', () => {
         const json = await res.json();
         expect(json).toEqual({
             success: true,
-            items: [{ publicId: 'pub-1', type: 'job', keyword: '백엔드 개발자', createdAt: createdAt.toISOString() }],
+            items: [{ publicId: 'pub-1', type: 'job', keyword: '백엔드 개발자', createdAt: createdAt.toISOString(), kind: 'single' }],
         });
         expect(listLibrary).toHaveBeenCalledWith(7);
+    });
+
+    it('비교 리포트 항목은 kind가 compare로 내려간다', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({ id: 7 });
+        const createdAt = new Date('2026-01-02T00:00:00.000Z');
+        vi.mocked(listLibrary).mockResolvedValue([
+            { id: 2, public_id: 'pub-2', type: 'job', keyword: '핀테크 PM, 데이터 분석가', scope: 'kr', created_at: createdAt, request_count: 1, kind: 'compare' },
+        ]);
+
+        const res = await GET(getRequest());
+        const json = await res.json();
+        expect(json.items[0]).toEqual({
+            publicId: 'pub-2',
+            type: 'job',
+            keyword: '핀테크 PM, 데이터 분석가',
+            createdAt: createdAt.toISOString(),
+            kind: 'compare',
+        });
     });
 
     it('DB 조회 중 예외가 발생하면 500이고 내부 정보를 노출하지 않는다', async () => {
