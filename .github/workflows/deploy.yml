@@ -1,0 +1,47 @@
+# 수동 실행 배포: GitHub > Actions > Deploy > Run workflow.
+# 운영 DB 스크립트는 코드보다 먼저 실행해야 하므로(배포.md (k)) 자동 배포 대신 수동 실행 + 확인 체크로 둔다.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrations_done:
+        description: '이번 배포에 필요한 운영 DB 스크립트를 먼저 실행했습니다 (배포.md (k))'
+        type: boolean
+        required: true
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: DB 스크립트 확인
+        if: ${{ !inputs.migrations_done }}
+        run: |
+          echo "::error::운영 DB 스크립트를 먼저 실행한 뒤 체크하고 다시 실행하세요 (배포.md (k))."
+          exit 1
+
+      - name: SSH 키 준비
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+
+      - name: 서버에서 배포 스크립트 실행
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          APP_DIR: ${{ secrets.DEPLOY_APP_DIR || '/opt/NESSChatBot/next-app' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes "$USER@$HOST" \
+            "cd '$APP_DIR' && git fetch --quiet origin master && git checkout --quiet master && git reset --hard origin/master && bash scripts/deploy.sh"
