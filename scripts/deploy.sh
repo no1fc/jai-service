@@ -8,7 +8,8 @@ APP_NAME="ness-chatbot"
 cd "$(dirname "$0")/.."
 
 echo "▶ $(git log --oneline -1)"
-npm ci --no-audit --no-fund
+# ponytail: npm ci 대신 npm install — Windows에서 만든 lockfile에 Linux 전용 선택 의존성이 빠져 있다(ci.yml 참고). 바뀐 lockfile은 다음 배포의 git reset으로 되돌아간다.
+npm install --no-audit --no-fund
 npm run build
 
 if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
