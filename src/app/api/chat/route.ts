@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateResponse, safeParseJSON } from '@/lib/gemini';
 import { getInfoMessage, getIntroMessage } from '@/lib/prompts';
 import { DIAGNOSIS_QUESTIONS, parseDiagnosisAnswers } from '@/lib/eligibility/answers';
+import { checkConsistency } from '@/lib/eligibility/consistency';
 import { judgeEligibility } from '@/lib/eligibility/judge';
 import {
     buildExplanationPrompt, fallbackExplanation, toDiagnosisResult, type Explanation,
@@ -90,6 +91,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             const limit = checkRateLimit(`chat:${getClientIp(request)}`, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
             if (!limit.allowed) {
                 return NextResponse.json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' }, { status: 429 });
+            }
+
+            // 모순 답변은 규칙 판정 전에 차단한다(클라이언트 배너 우회 방지). warn은 서버에서 막지 않는다.
+            const conflicts = checkConsistency(userAnswers).filter(c => c.level === 'error');
+            if (conflicts.length) {
+                return NextResponse.json({ error: `답변이 서로 맞지 않습니다: ${conflicts[0].message}` }, { status: 400 });
             }
 
             const parsedAnswers = parseDiagnosisAnswers(userAnswers);

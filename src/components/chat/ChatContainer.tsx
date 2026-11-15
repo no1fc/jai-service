@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '@/hooks/useChat';
 import ChatMessage from './ChatMessage';
 import ChoiceChips from './ChoiceChips';
@@ -8,16 +8,16 @@ import TextInput from './TextInput';
 import RetryButton from './RetryButton';
 import LoadingIndicator from './LoadingIndicator';
 import ProgressBar from './ProgressBar';
-import ResultCard from '@/components/result/ResultCard';
-import BranchCard from '@/components/result/BranchCard';
-import MapWidget from '@/components/result/MapWidget';
+import ResultSection from './ResultSection';
+import ConflictBanner from './ConflictBanner';
 import RegionSelector from './RegionSelector';
-import LeadForm from '@/components/lead/LeadForm';
-import { Branch } from '@/types/db';
 import { ArrowLeft } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { SIDO_LIST } from '@/lib/regions';
 import { NUMBER_LIMITS } from '@/lib/eligibility/answers';
+import { shouldLookupBranch } from '@/lib/eligibility/branch-lookup';
+import { checkConsistency } from '@/lib/eligibility/consistency';
+import type { BranchState } from '@/types/chat';
 
 /** questionId가 숫자 범위 제한이 있는 질문인지 (age, monthlyIncome) */
 function isNumberLimitKey(id: string | null): id is keyof typeof NUMBER_LIMITS {
@@ -40,13 +40,14 @@ export default function ChatContainer() {
         sendChoice,
         sendText,
         goBack,
+        goBackTo,
         retry,
         startChat,
     } = useChat();
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const resultRef = useRef<HTMLDivElement>(null);
-    const [branch, setBranch] = useState<Branch | null | 'loading' | 'none'>('none');
+    const [branch, setBranch] = useState<BranchState>('none');
     const [numberError, setNumberError] = useState('');
 
     useEffect(() => {
@@ -77,11 +78,13 @@ export default function ChatContainer() {
             );
             const data = await response.json();
 
-            if (data.branch) {
-                setBranch(data.branch as Branch);
-            } else {
+            if (!response.ok) {
+                logger.warn('지점 조회 응답 오류:', response.status);
                 setBranch(null);
+                return;
             }
+
+            setBranch(data.branch ?? null);
         } catch (error) {
             logger.error('지점 조회 오류:', error);
             setBranch(null);
@@ -89,7 +92,7 @@ export default function ChatContainer() {
     };
 
     useEffect(() => {
-        if (phase === 'result' && branch === 'none' && result && result.type !== '제한') {
+        if (shouldLookupBranch(phase, branch, result)) {
             const regionMessage = messages.find((m) => m.role === 'user' && SIDO_LIST.some(sido => m.content.startsWith(sido)));
 
             if (regionMessage) {
@@ -104,9 +107,14 @@ export default function ChatContainer() {
     const lastAIMessage = [...messages].reverse().find((m) => m.role === 'ai');
     const currentChoices = lastAIMessage?.choices ?? [];
 
+    // 답변 모순 검사 (답변마다 새로 계산 — 마지막 답변으로 생긴 모순은 추적 상태 없이 항상 최신)
+    const conflicts = useMemo(() => checkConsistency(userAnswers), [userAnswers]);
+    const blocked = conflicts.some((c) => c.level === 'error');
+    const showConflictBanner = phase === 'questioning' && !isLoading && !isError && conflicts.length > 0;
+
     // 현재 질문이 지역 선택형인지 확인
-    const isRegionStep = phase === 'questioning' && questionType === 'region';
-    const isNumberStep = phase === 'questioning' && questionType === 'number' && !isLoading && !isError;
+    const isRegionStep = phase === 'questioning' && questionType === 'region' && !blocked;
+    const isNumberStep = phase === 'questioning' && questionType === 'number' && !isLoading && !isError && !blocked;
 
     const showInput =
         !isLoading &&
@@ -115,7 +123,8 @@ export default function ChatContainer() {
         phase !== 'result' &&
         phase !== 'ended' &&
         branch === 'none' &&
-        currentChoices.length > 0;
+        currentChoices.length > 0 &&
+        !blocked;
 
     return (
         <div className="flex flex-col h-full relative">
@@ -147,25 +156,7 @@ export default function ChatContainer() {
                     }`}>
                     <div className={`w-full flex flex-col items-center ${phase === 'result' ? 'flex-1' : 'my-auto'}`}>
                         {phase === 'result' ? (
-                            <div key="result-view" className="w-full flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch animate-reveal-up pb-4">
-                                <div className="flex flex-col h-full">
-                                    {result && <ResultCard result={result} />}
-                                </div>
-                                <div className="flex flex-col h-full">
-                                    {branch !== 'loading' && result && (
-                                        <BranchCard branch={branch === 'none' ? null : branch} diagnosisType={result.type} />
-                                    )}
-                                </div>
-                                <div className="lg:col-span-2 w-full max-w-xl mx-auto">
-                                    {result && (
-                                        <LeadForm
-                                            source="diagnosis"
-                                            payload={{ answers: userAnswers, result }}
-                                            defaultRegion={(userAnswers.region ?? '').split(' ')[0]}
-                                        />
-                                    )}
-                                </div>
-                            </div>
+                            result && <ResultSection result={result} branch={branch} userAnswers={userAnswers} />
                         ) : isLoading ? (
                             <div key="loading" className="flex justify-center items-center py-20 animate-fade-in">
                                 <LoadingIndicator mode={phase === 'analyzing' ? 'analyzing' : 'bubble'} />
@@ -176,6 +167,11 @@ export default function ChatContainer() {
                                 <div className="w-full mb-12">
                                     <ChatMessage message={lastAIMessage} />
                                 </div>
+
+                                {/* 답변 모순 배너 — error면 아래 선택지·입력이 숨겨진다(blocked) */}
+                                {showConflictBanner && (
+                                    <ConflictBanner conflicts={conflicts} answers={userAnswers} onEdit={goBackTo} />
+                                )}
 
                                 {/* 상황별 추가 UI 조건부 렌더링 */}
                                 {isRegionStep && (

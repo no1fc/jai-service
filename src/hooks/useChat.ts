@@ -53,20 +53,43 @@ function createUserMessage(content: string): Message {
     };
 }
 
-/** /api/chat 응답 → RECEIVE_RESPONSE payload */
+/**
+ * /api/chat 응답 → RECEIVE_RESPONSE payload
+ * phase가 'info'면 안내문은 history(서버 전송용 대화 기록)에서 제외한다(Bug A: 1000자 스키마 초과 방지).
+ * 화면에는 aiMessage로 그대로 표시된다.
+ * intro/info 응답은 currentStep을 0으로 고정한다(안내문 currentStep이 1로 와도 나이 질문이 건너뛰어지지 않도록).
+ */
 export function toReceivePayload(data: {
     message: string; choices?: Choice[]; phase?: ChatPhase; currentStep?: number; totalSteps?: number;
     questionId?: string; type?: QuestionType; result?: DiagnosisResult;
 }) {
     return {
         aiMessage: createAIMessage(data.message, data.choices),
-        historyEntry: { role: 'model' as const, content: data.message },
+        historyEntry: data.phase === 'info' ? null : { role: 'model' as const, content: data.message },
         phase: data.phase,
-        currentStep: data.currentStep,
+        currentStep: data.phase === 'intro' || data.phase === 'info' ? 0 : data.currentStep,
         totalSteps: data.totalSteps,
         questionId: data.questionId ?? null,
         questionType: data.type ?? null,
         result: data.phase === 'result' && data.result ? data.result : undefined,
+    };
+}
+
+/**
+ * /api/chat 요청 바디 생성 (순수 함수)
+ * history에 pending(이번에 보낼 사용자 메시지)을 더해 messages를 만든다.
+ * callChatAPI와 테스트가 동일한 로직을 공유해 수동 history 조립 중복을 없앤다.
+ */
+export function buildChatRequestBody(
+    state: Pick<ChatState, 'history' | 'userAnswers' | 'currentStep'>,
+    phase: ChatPhase,
+    pending?: { role: 'user'; content: string }
+) {
+    return {
+        messages: pending ? [...state.history, pending] : state.history,
+        phase,
+        userAnswers: state.userAnswers,
+        currentStep: state.currentStep,
     };
 }
 
@@ -102,7 +125,7 @@ type ChatAction =
     | { type: 'ADD_USER_DATA'; payload: { historyEntry: { role: 'user'; content: string }; answers: Record<string, string> } }
     | {
         type: 'RECEIVE_RESPONSE'; payload: {
-            aiMessage: Message; historyEntry: { role: 'model'; content: string }; phase?: ChatPhase;
+            aiMessage: Message; historyEntry: { role: 'model'; content: string } | null; phase?: ChatPhase;
             currentStep?: number; totalSteps?: number; questionId?: string | null; questionType?: QuestionType | null;
             result?: DiagnosisResult;
         };
@@ -114,6 +137,7 @@ type ChatAction =
     | { type: 'START_CHAT_SUCCESS'; payload: { introMessage: Message } }
     | { type: 'START_CHAT_ERROR'; payload: { errorMessage: Message } }
     | { type: 'GO_BACK' }
+    | { type: 'GO_BACK_TO'; payload: { questionId: string } }
     | { type: 'RESET' };
 
 // ====================================
@@ -135,6 +159,29 @@ export const initialState: ChatState = {
     lastAction: null,
     stateHistory: [],
 };
+
+/**
+ * stateHistory[index] 스냅샷으로 되돌린다 (GO_BACK, GO_BACK_TO 공용).
+ * 그 이후에 쌓인 스냅샷은 버린다(slice(0, index)).
+ */
+function restoreSnapshot(state: ChatState, index: number): ChatState {
+    const snapshot = state.stateHistory[index];
+    return {
+        ...state,
+        messages: snapshot.messages,
+        currentStep: snapshot.currentStep,
+        phase: snapshot.phase,
+        userAnswers: snapshot.userAnswers,
+        history: snapshot.history,
+        result: snapshot.result,
+        questionId: snapshot.questionId,
+        questionType: snapshot.questionType,
+        totalSteps: snapshot.totalSteps,
+        stateHistory: state.stateHistory.slice(0, index),
+        isError: false,
+        lastAction: null,
+    };
+}
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     switch (action.type) {
@@ -181,7 +228,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
             return {
                 ...state,
                 messages: [...state.messages, aiMessage],
-                history: [...state.history, historyEntry],
+                history: historyEntry ? [...state.history, historyEntry] : state.history,
                 lastAction: null,
                 isLoading: false,
                 questionId: questionId ?? null,
@@ -249,22 +296,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
         case 'GO_BACK': {
             if (state.isLoading || state.stateHistory.length === 0) return state;
-            const prev = state.stateHistory[state.stateHistory.length - 1];
-            return {
-                ...state,
-                messages: prev.messages,
-                currentStep: prev.currentStep,
-                phase: prev.phase,
-                userAnswers: prev.userAnswers,
-                history: prev.history,
-                result: prev.result,
-                questionId: prev.questionId,
-                questionType: prev.questionType,
-                totalSteps: prev.totalSteps,
-                stateHistory: state.stateHistory.slice(0, -1),
-                isError: false,
-                lastAction: null,
-            };
+            return restoreSnapshot(state, state.stateHistory.length - 1);
+        }
+
+        case 'GO_BACK_TO': {
+            const idx = state.stateHistory.findLastIndex(s => s.questionId === action.payload.questionId);
+            if (state.isLoading || idx < 0) return state;
+            return restoreSnapshot(state, idx);
         }
 
         case 'RESET':
@@ -284,23 +322,14 @@ export function useChat(): UseChatReturn {
 
     /**
      * /api/chat 호출 공통 함수
+     * body는 buildChatRequestBody로 조립한다(sendChoice/sendText/triggerAnalysis/startChat 공유).
      */
     const callChatAPI = useCallback(
-        async (
-            currentPhase: ChatPhase,
-            newHistory: Array<{ role: 'user' | 'model'; content: string }>,
-            answers: Record<string, string>,
-            currentStepForAPI?: number
-        ) => {
+        async (body: ReturnType<typeof buildChatRequestBody>) => {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: newHistory,
-                    phase: currentPhase,
-                    userAnswers: answers,
-                    currentStep: currentStepForAPI,
-                }),
+                body: JSON.stringify(body),
             });
 
             if (!response.ok) {
@@ -331,7 +360,8 @@ export function useChat(): UseChatReturn {
             });
 
             try {
-                const data = await callChatAPI('analyzing', currentHistory, answers, step);
+                const body = buildChatRequestBody({ history: currentHistory, userAnswers: answers, currentStep: step }, 'analyzing');
+                const data = await callChatAPI(body);
 
                 if (data.result) {
                     dispatch({
@@ -374,7 +404,7 @@ export function useChat(): UseChatReturn {
         });
 
         try {
-            const newHistory = [...state.history, { role: 'user' as const, content: choice.label }];
+            const pending = { role: 'user' as const, content: choice.label };
 
             // 단계 전환 로직
             let nextPhase: ChatPhase = state.phase;
@@ -392,18 +422,19 @@ export function useChat(): UseChatReturn {
             dispatch({
                 type: 'ADD_USER_DATA',
                 payload: {
-                    historyEntry: { role: 'user', content: choice.label },
+                    historyEntry: pending,
                     answers: newAnswers,
                 },
             });
 
-            const data = await callChatAPI(nextPhase, newHistory, newAnswers, state.currentStep);
+            const body = buildChatRequestBody({ history: state.history, userAnswers: newAnswers, currentStep: state.currentStep }, nextPhase, pending);
+            const data = await callChatAPI(body);
 
             dispatch({ type: 'RECEIVE_RESPONSE', payload: toReceivePayload(data) });
 
             // analyzing 단계로 자동 전환 (마지막 질문 완료 시)
             if (isQuestionsDone(data)) {
-                await triggerAnalysis(newHistory, newAnswers, state.currentStep);
+                await triggerAnalysis(body.messages, newAnswers, state.currentStep);
             }
         } catch {
             dispatch({
@@ -429,7 +460,7 @@ export function useChat(): UseChatReturn {
         });
 
         try {
-            const newHistory = [...state.history, { role: 'user' as const, content: text }];
+            const pending = { role: 'user' as const, content: text };
 
             const newAnswers = state.questionId
                 ? { ...state.userAnswers, [state.questionId]: text.trim() }
@@ -438,17 +469,18 @@ export function useChat(): UseChatReturn {
             dispatch({
                 type: 'ADD_USER_DATA',
                 payload: {
-                    historyEntry: { role: 'user', content: text },
+                    historyEntry: pending,
                     answers: newAnswers,
                 },
             });
 
-            const data = await callChatAPI(state.phase, newHistory, newAnswers, state.currentStep);
+            const body = buildChatRequestBody({ history: state.history, userAnswers: newAnswers, currentStep: state.currentStep }, state.phase, pending);
+            const data = await callChatAPI(body);
 
             dispatch({ type: 'RECEIVE_RESPONSE', payload: toReceivePayload(data) });
 
             if (isQuestionsDone(data)) {
-                await triggerAnalysis(newHistory, newAnswers, state.currentStep);
+                await triggerAnalysis(body.messages, newAnswers, state.currentStep);
             }
         } catch {
             dispatch({
@@ -486,12 +518,20 @@ export function useChat(): UseChatReturn {
     }, []);
 
     /**
+     * 지정한 질문 화면으로 되돌아가는 함수 (모순 배너의 "수정" 버튼용)
+     */
+    const goBackTo = useCallback((questionId: string) => {
+        dispatch({ type: 'GO_BACK_TO', payload: { questionId } });
+    }, []);
+
+    /**
      * 챗봇 시작 함수
      */
     const startChat = useCallback(async () => {
         dispatch({ type: 'SET_LOADING', payload: true });
         try {
-            const data = await callChatAPI('intro', [], {}, 0);
+            const body = buildChatRequestBody({ history: [], userAnswers: {}, currentStep: 0 }, 'intro');
+            const data = await callChatAPI(body);
             dispatch({
                 type: 'START_CHAT_SUCCESS',
                 payload: { introMessage: createAIMessage(data.message, data.choices) },
@@ -527,6 +567,7 @@ export function useChat(): UseChatReturn {
         sendChoice,
         sendText,
         goBack,
+        goBackTo,
         retry,
         startChat,
         resetChat,
