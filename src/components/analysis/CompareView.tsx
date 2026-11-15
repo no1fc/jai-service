@@ -5,7 +5,8 @@
  */
 import Link from 'next/link';
 import AiGeneratedBadge from '@/components/AiGeneratedBadge';
-import { Badge, card, chip, daysAgoLabel, Section, work24UnavailableReason } from './report-shared';
+import RelatedJobChips from './RelatedJobChips';
+import { Badge, card, daysAgoLabel, Section, work24UnavailableReason } from './report-shared';
 import { dataBadgeLabels } from '@/lib/analysis/labels';
 import type { CompareReport, PublicReport } from '@/lib/analysis/schema';
 
@@ -111,15 +112,7 @@ export default function CompareView({ report, pdfHref }: CompareViewProps) {
                 )}
             </Section>
 
-            {content.relatedJobs.length > 0 && (
-                <Section title="관련 직무">
-                    <div className="flex flex-wrap gap-2">
-                        {content.relatedJobs.map(job => (
-                            <Link key={job} href={`/analysis?type=job&keyword=${encodeURIComponent(job)}`} className={chip}>{job}</Link>
-                        ))}
-                    </div>
-                </Section>
-            )}
+            <RelatedJobChips jobs={content.relatedJobs} scope={report.scope} options={report.options} />
 
             {meta.sources.length > 0 && (
                 <Section title="출처">

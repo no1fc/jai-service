@@ -1,6 +1,6 @@
 /** analysis-form-logic.ts 테스트 — 버튼 문구·요청 바디 분기(키워드 2개 이상 = 비교)·추천 칩 토큰 치환. */
 import { describe, expect, it } from 'vitest';
-import { buildAnalysisRequestBody, compareButtonLabel, lastToken, replaceLastToken } from './analysis-form-logic';
+import { buildAnalysisRequestBody, compareButtonLabel, isValidReportKeyword, lastToken, replaceLastToken } from './analysis-form-logic';
 
 describe('compareButtonLabel', () => {
     it('키워드가 1개면 기본 문구를 반환한다', () => {
@@ -66,5 +66,23 @@ describe('replaceLastToken', () => {
     });
     it('마지막이 쉼표(뒤 토큰 없음)여도 추천 값을 덧붙인다', () => {
         expect(replaceLastToken('데이터 분석가, ', '웹 개발자')).toBe('데이터 분석가, 웹 개발자');
+    });
+});
+
+describe('isValidReportKeyword', () => {
+    it('정상 키워드(한글·공백)는 true를 반환한다', () => {
+        expect(isValidReportKeyword('핀테크 PM')).toBe(true);
+    });
+    it('1자(최소 2자 미만)는 false를 반환한다', () => {
+        expect(isValidReportKeyword('A')).toBe(false);
+    });
+    it('허용되지 않는 문자(이모지 등)가 섞이면 false를 반환한다', () => {
+        expect(isValidReportKeyword('핀테크 PM 🚀')).toBe(false);
+    });
+    it('50자를 넘으면 false를 반환한다', () => {
+        expect(isValidReportKeyword('가'.repeat(51))).toBe(false);
+    });
+    it('앞뒤 공백은 trim 후 검사한다', () => {
+        expect(isValidReportKeyword('  핀테크 PM  ')).toBe(true);
     });
 });

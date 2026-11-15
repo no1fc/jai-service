@@ -4,7 +4,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AnalysisForm from '@/components/analysis/AnalysisForm';
-import { pushRecent } from '@/components/analysis/recent-reports';
+import { pushRecent, toRecentItem } from '@/components/analysis/recent-reports';
 import type { AnalysisRequest, PublicReport } from '@/lib/analysis/schema';
 
 const EXAMPLE_KEYWORDS = ['핀테크 PM', 'AI 반도체', '물류 관리', '콘텐츠 마케터'];
@@ -18,7 +18,7 @@ function AnalysisPageContent() {
     const defaultKeyword = keywordOverride ?? searchParams.get('keyword') ?? '';
 
     function handleCreated(report: PublicReport) {
-        pushRecent({ publicId: report.publicId, type: report.type, keyword: report.keyword, createdAt: report.createdAt, kind: report.kind });
+        pushRecent(toRecentItem(report));
         router.push(`/analysis/r/${report.publicId}`);
     }
 

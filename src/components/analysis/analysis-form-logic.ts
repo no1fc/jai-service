@@ -3,7 +3,7 @@
  * 비교(2개 이상 키워드) 여부는 `parseKeywords` 결과 개수로만 판단한다(설계서 5.2·5.6).
  */
 import { parseKeywords } from '@/lib/analysis/keywords';
-import { ANALYSIS_TYPE_LABEL, type AnalysisRequest } from '@/lib/analysis/schema';
+import { ANALYSIS_TYPE_LABEL, KEYWORD_MAX, KEYWORD_MIN, KEYWORD_RE, type AnalysisRequest } from '@/lib/analysis/schema';
 
 /** 분석 실행 버튼 문구 — 키워드 2개 이상이면 "N개 직무/산업 비교 분석하기", 아니면 기본 문구. */
 export function compareButtonLabel(keyword: string, type: AnalysisRequest['type']): string {
@@ -42,4 +42,10 @@ export function replaceLastToken(raw: string, picked: string): string {
     const parts = raw.split(/[,，]/);
     parts[parts.length - 1] = picked;
     return parts.map(p => p.trim()).join(', ');
+}
+
+/** `analysisRequestSchema.keyword` 규칙(길이·허용 문자)을 그대로 따른다 — 관련 직무 칩이 보장된 400을 피하도록 미리 거른다. */
+export function isValidReportKeyword(keyword: string): boolean {
+    const trimmed = keyword.trim();
+    return trimmed.length >= KEYWORD_MIN && trimmed.length <= KEYWORD_MAX && KEYWORD_RE.test(trimmed);
 }

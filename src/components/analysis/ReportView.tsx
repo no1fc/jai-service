@@ -5,11 +5,12 @@
 import Link from 'next/link';
 import AiGeneratedBadge from '@/components/AiGeneratedBadge';
 import CompareView from './CompareView';
-import { Badge, card, chip, daysAgoLabel, Section, work24UnavailableReason } from './report-shared';
+import RelatedJobChips from './RelatedJobChips';
+import { Badge, card, daysAgoLabel, Section, work24UnavailableReason } from './report-shared';
 import { dataBadgeLabels } from '@/lib/analysis/labels';
 import {
     ANALYSIS_TYPE_LABEL,
-    type IndustryReport, type JobReport, type PublicReport, type Work24Summary,
+    type AnalysisRequest, type IndustryReport, type JobReport, type PublicReport, type Work24Summary,
 } from '@/lib/analysis/schema';
 
 interface ReportViewProps {
@@ -59,7 +60,9 @@ function HiringSection({ hiring, work24, inDemandRoles }: { hiring: HiringLike; 
     );
 }
 
-function JobSections({ content, work24 }: { content: JobReport; work24: Work24Summary | null }) {
+interface SectionCommonProps { scope: AnalysisRequest['scope']; options: PublicReport['options'] }
+
+function JobSections({ content, work24, scope, options }: { content: JobReport; work24: Work24Summary | null } & SectionCommonProps) {
     return (
         <>
             {content.aliases.length > 0 && <Section title="유사 직무명"><p className="text-text-secondary">{content.aliases.join(', ')}</p></Section>}
@@ -92,20 +95,12 @@ function JobSections({ content, work24 }: { content: JobReport; work24: Work24Su
                     ))}
                 </ol>
             </Section>
-            {content.relatedJobs.length > 0 && (
-                <Section title="관련 직무">
-                    <div className="flex flex-wrap gap-2">
-                        {content.relatedJobs.map(job => (
-                            <Link key={job} href={`/analysis?type=job&keyword=${encodeURIComponent(job)}`} className={chip}>{job}</Link>
-                        ))}
-                    </div>
-                </Section>
-            )}
+            <RelatedJobChips jobs={content.relatedJobs} scope={scope} options={options} />
         </>
     );
 }
 
-function IndustrySections({ content, work24 }: { content: IndustryReport; work24: Work24Summary | null }) {
+function IndustrySections({ content, work24, scope, options }: { content: IndustryReport; work24: Work24Summary | null } & SectionCommonProps) {
     return (
         <>
             {content.segments.length > 0 && <Section title="세부 분야"><p className="text-text-secondary">{content.segments.join(', ')}</p></Section>}
@@ -129,17 +124,15 @@ function IndustrySections({ content, work24 }: { content: IndustryReport; work24
                 <Section title="유망 직무">
                     <div className="space-y-2">
                         {content.promisingJobs.map(job => (
-                            <div key={job.name} className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="font-semibold text-text">{job.name}</p>
-                                    <p className="text-sm text-text-secondary">{job.reason}</p>
-                                </div>
-                                <Link href={`/analysis?type=job&keyword=${encodeURIComponent(job.name)}`} className={`${chip} shrink-0`}>분석하기</Link>
+                            <div key={job.name}>
+                                <p className="font-semibold text-text">{job.name}</p>
+                                <p className="text-sm text-text-secondary">{job.reason}</p>
                             </div>
                         ))}
                     </div>
                 </Section>
             )}
+            <RelatedJobChips jobs={content.promisingJobs.map(j => j.name)} scope={scope} options={options} />
             {content.keywords.length > 0 && (
                 <Section title="키워드">
                     <div className="flex flex-wrap gap-2">
@@ -174,7 +167,9 @@ export default function ReportView({ report, pdfHref }: ReportViewProps) {
                 </div>
             </div>
 
-            {isJob ? <JobSections content={content as JobReport} work24={meta.work24} /> : <IndustrySections content={content as IndustryReport} work24={meta.work24} />}
+            {isJob
+                ? <JobSections content={content as JobReport} work24={meta.work24} scope={report.scope} options={report.options} />
+                : <IndustrySections content={content as IndustryReport} work24={meta.work24} scope={report.scope} options={report.options} />}
 
             {meta.sources.length > 0 && (
                 <Section title="출처">
